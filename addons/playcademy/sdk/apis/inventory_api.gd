@@ -68,10 +68,46 @@ func get_all():
 
 func _on_get_all_resolved(args: Array):
 	print("[InventoryAPI] Get inventory promise resolved. Args: ", args)
-	if args.size() > 0:
-		emit_signal("get_all_succeeded", args[0])
-	else:
-		emit_signal("get_all_failed", "RESOLVED_NO_DATA")
+	if args.size() == 0:
+		printerr("[InventoryAPI] Get inventory promise resolved with no data arguments.")
+		emit_signal("get_all_succeeded", [])
+		_clear_get_all_callbacks()
+		return
+
+	var raw_inventory_data = args[0] 
+	var normalized_inventory_data = []
+	var inv_len = int(raw_inventory_data.length)
+
+	for i in range(inv_len):
+		var item_entry_js = raw_inventory_data[i]
+
+		if item_entry_js == null:
+			printerr("[InventoryAPI] WARNING: Encountered null item entry at index %d. Skipping." % i)
+			continue
+
+		var item_data_dict = {}
+		item_data_dict["item"] = item_entry_js.item 
+
+		var raw_quantity = item_entry_js.quantity
+		var int_quantity = 0
+
+		if raw_quantity != null:
+			if typeof(raw_quantity) == TYPE_INT:
+				int_quantity = int(raw_quantity)
+			elif typeof(raw_quantity) == TYPE_FLOAT:
+				int_quantity = int(raw_quantity) # Truncate
+			elif typeof(raw_quantity) == TYPE_STRING:
+				if String(raw_quantity).is_valid_int():
+					int_quantity = String(raw_quantity).to_int()
+				else:
+					printerr("[InventoryAPI] WARNING: Quantity for item at index %d is a non-integer string: '%s'. Defaulting to 0." % [i, raw_quantity])
+			else:
+				printerr("[InventoryAPI] WARNING: Quantity for item at index %d has unexpected type: %s. Value: '%s'. Defaulting to 0." % [i, typeof(raw_quantity), raw_quantity])
+		
+		item_data_dict["quantity"] = int_quantity
+		normalized_inventory_data.append(item_data_dict)
+			
+	emit_signal("get_all_succeeded", normalized_inventory_data)
 	_clear_get_all_callbacks()
 
 func _on_get_all_rejected(args: Array):

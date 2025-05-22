@@ -43,6 +43,7 @@ func me():
 func _on_profile_resolved(args: Array):
 	print("[UsersAPI] User profile promise resolved. Args: ", args)
 	if args.size() > 0:
+		# Godot side (e.g., Main.gd) will handle this in a function connected to 'profile_received',
 		emit_signal("profile_received", args[0])
 	else:
 		emit_signal("profile_fetch_failed", "PROFILE_RESOLVED_NO_DATA")

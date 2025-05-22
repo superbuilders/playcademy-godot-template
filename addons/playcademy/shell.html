@@ -24,10 +24,10 @@
             -   It attempts to call `window.godotPlaycademySDKInitializedCallback(client)` 
                 or `window.godotPlaycademySDKInitializationFailedCallback(error)` if these 
                 functions have been registered on the `window` object by the GDScript side 
-                (`PlaycademySdk.gd`). This allows the Godot game to be notified when the 
+                (`PlaycademySDK.gd`). This allows the Godot game to be notified when the 
                 SDK is ready or if initialization failed.
             -   If the callbacks aren't registered yet (e.g., if the JS SDK initializes 
-                before Godot's `_ready()` function in `PlaycademySdk.gd` runs), the GDScript 
+                before Godot's `_ready()` function in `PlaycademySDK.gd` runs), the GDScript 
                 side is expected to check `window.isPlaycademyReady` and 
                 `window.playcademyClient` directly.
 

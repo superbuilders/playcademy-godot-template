@@ -217,7 +217,7 @@ func _export_end() -> void:
 			print("PLAYCADEMY-PLUGIN: Warning - Cannot reliably determine parent directory for zipping project root. Skipping auto-zip.")
 			return
 	
-	var zip_file_name = export_dir_name + "_playcademy_export" + ".zip"
+	var zip_file_name = export_dir_name + "_playcademy" + ".zip"
 	var zip_file_path = parent_dir_path.path_join(zip_file_name)
 
 	var packer = ZIPPacker.new()
