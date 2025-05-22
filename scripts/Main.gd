@@ -61,9 +61,15 @@ func _ready():
 	if not (sdk_status_label and user_info_label and inventory_label and api_result_label and
 			get_user_button and get_inventory_button and grant_item_button and spend_item_button and exit_button and status_indicator_node and not _feature_tier_labels.is_empty()):
 		printerr("[Playcademy Godot Template] CRITICAL: Not all UI elements, including feature tier labels, could be found after setup. Check UISetup.gd and Main.gd scripts.")
+		return 
+
+	# NOTE: If not running in a web environment, the Playcademy SDK will not initialize.
+	if not OS.has_feature("web"):
+		_update_sdk_status_display()
+		_disable_buttons() 
+		printerr("[Playcademy Godot Template] Not a web build. SDK functionality will be unavailable.")
 		return
 
-	# Set initial UI states.
 	inventory_label.text = "Currency: ---"
 	spend_item_button.disabled = true 
 	grant_item_button.disabled = true 
@@ -118,6 +124,15 @@ func _set_status_indicator_color(color: Color):
 
 # Updates the UI elements that display the SDK's current initialization status.
 func _update_sdk_status_display():
+	# Handle non-web environment first
+	if not OS.has_feature("web"):
+		sdk_status_label.text = "SDK Status: Requires Web Environment"
+		_disable_buttons()
+		_set_status_indicator_color(Color("#F44336")) # Red, indicating non-functional
+		# Ensure API result label also reflects this state clearly
+		api_result_label.text = "API Result: SDK is non-functional outside of a web browser environment."
+		return
+
 	if PlaycademySdk and PlaycademySdk.is_ready():
 		sdk_status_label.text = "SDK Status: Initialized and Ready!"
 		_enable_buttons()
@@ -126,7 +141,7 @@ func _update_sdk_status_display():
 		sdk_status_label.text = "SDK Status: Not Ready / Initializing..."
 		_disable_buttons()
 		_set_status_indicator_color(Color("#FFC107")) # Amber
-        
+		
 func _disable_buttons():
 	get_user_button.disabled = true
 	get_inventory_button.disabled = true
@@ -153,9 +168,13 @@ func _on_sdk_ready():
 # Called if the Playcademy SDK fails to initialize.
 func _on_sdk_init_failed(error_message: String):
 	printerr("[Playcademy Godot Template] Playcademy SDK Initialization Failed: ", error_message)
+	# _update_sdk_status_display will be called. If it's a NOT_WEB_BUILD error,
+	# it will correctly show "Requires Web Environment".
+	# Otherwise, it shows the specific initialization error.
 	_update_sdk_status_display()
-	sdk_status_label.text = "SDK Status: FAILED - %s" % error_message
-	api_result_label.text = "API Result: SDK Init FAILED! Check console."
+	if error_message != "NOT_WEB_BUILD": # Avoid overwriting the more specific message from _update_sdk_status_display
+		sdk_status_label.text = "SDK Status: FAILED - %s" % error_message
+		api_result_label.text = "API Result: SDK Init FAILED! Check console."
 
 
 # --- Button Press Handlers ---
