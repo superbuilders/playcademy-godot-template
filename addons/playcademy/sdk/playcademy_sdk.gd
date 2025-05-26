@@ -4,21 +4,25 @@ extends Node
 signal sdk_ready
 signal sdk_initialization_failed(error_message)
 
+const UsersAPIWeb = preload("res://addons/playcademy/sdk/apis/users_api_web.gd")
+const RuntimeAPIWeb = preload("res://addons/playcademy/sdk/apis/runtime_api_web.gd")
+const InventoryAPIWeb = preload("res://addons/playcademy/sdk/apis/inventory_api_web.gd")
+
 var playcademy_client: JavaScriptObject = null
 var is_sdk_initialized := false
 
 # --- Public Sub-APIs ---
-var users: UsersAPI
-var runtime: RuntimeAPI
-var inventory: InventoryAPI
+var users
+var runtime
+var inventory
 
 # --- Main PlaycademySDK Methods ---
 func _ready():
 	print("[PlaycademySDK.gd] SDK Node Initializing...")
 
 	if not OS.has_feature("web"):
-		print("[PlaycademySDK.gd] Not a web build. SDK will not function.")
-		emit_signal("sdk_initialization_failed", "NOT_WEB_BUILD")
+		print("[PlaycademySDK.gd] Not a web build. Checking for local development sandbox...")
+		_try_local_sandbox_connection()
 		return
 
 	var js_window = JavaScriptBridge.get_interface("window")
@@ -54,21 +58,21 @@ func _on_sdk_initialized_from_js(args_array: Array):
 		playcademy_client = args_array[0]
 		is_sdk_initialized = true
 		
-		users = UsersAPI.new(playcademy_client)
+		users = UsersAPIWeb.new(playcademy_client)
 		if users == null:
-			printerr("[PlaycademySDK.gd] CRITICAL: UsersAPI failed to instantiate!")
+			printerr("[PlaycademySDK.gd] CRITICAL: UsersAPIWeb failed to instantiate!")
 			_on_sdk_initialization_failed_from_js(["UsersAPI_INSTANTIATION_FAILED"])
 			return
 
-		runtime = RuntimeAPI.new(playcademy_client)
+		runtime = RuntimeAPIWeb.new(playcademy_client)
 		if runtime == null:
-			printerr("[PlaycademySDK.gd] CRITICAL: RuntimeAPI failed to instantiate!")
+			printerr("[PlaycademySDK.gd] CRITICAL: RuntimeAPIWeb failed to instantiate!")
 			_on_sdk_initialization_failed_from_js(["RuntimeAPI_INSTANTIATION_FAILED"])
 			return
 
-		inventory = InventoryAPI.new(playcademy_client)
+		inventory = InventoryAPIWeb.new(playcademy_client)
 		if inventory == null:
-			printerr("[PlaycademySDK.gd] CRITICAL: InventoryAPI failed to instantiate!")
+			printerr("[PlaycademySDK.gd] CRITICAL: InventoryAPIWeb failed to instantiate!")
 			_on_sdk_initialization_failed_from_js(["InventoryAPI_INSTANTIATION_FAILED"])
 			return
 
@@ -133,6 +137,90 @@ func _cleanup_js_callbacks():
 
 func _exit_tree():
 	_cleanup_js_callbacks()
+
+# Local development sandbox support
+func _try_local_sandbox_connection():
+	print("[PlaycademySDK.gd] Attempting to connect to local development sandbox...")
+	
+	# Try to discover the actual sandbox port (it may not be 4321 if that port was busy)
+	_discover_sandbox_port()
+
+var _port_scan_index = 0
+var _port_scan_range = [4321, 4322, 4323, 4324, 4325, 4326, 4327, 4328, 4329, 4330]
+
+func _discover_sandbox_port():
+	if _port_scan_index >= _port_scan_range.size():
+		_handle_sandbox_connection_failed("No sandbox found on ports 4321-4330")
+		return
+	
+	var port = _port_scan_range[_port_scan_index]
+	var health_url = "http://localhost:%d/health" % port
+	
+	print("[PlaycademySDK.gd] Scanning for sandbox on port %d..." % port)
+	
+	var http_request = HTTPRequest.new()
+	add_child(http_request)
+	http_request.request_completed.connect(_on_port_scan_result)
+	
+	http_request.timeout = 2.0
+	
+	var error = http_request.request(health_url)
+	if error != OK:
+		print("[PlaycademySDK.gd] Failed to make request to port %d: %s" % [port, error])
+		http_request.queue_free()
+		_try_next_port()
+
+func _on_port_scan_result(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray):
+	# Find and clean up the HTTPRequest node
+	for child in get_children():
+		if child is HTTPRequest:
+			child.queue_free()
+			break
+	
+	var current_port = _port_scan_range[_port_scan_index]
+	
+	if response_code == 200:
+		print("[PlaycademySDK.gd] Found sandbox running on port %d!" % current_port)
+		_found_sandbox_port = current_port
+		_initialize_mock_client()
+	else:
+		# Handle timeout, connection refused, or other HTTP errors
+		if result == HTTPRequest.RESULT_TIMEOUT:
+			print("[PlaycademySDK.gd] Port %d timed out, trying next port..." % current_port)
+		elif response_code == 0:
+			print("[PlaycademySDK.gd] Port %d connection failed, trying next port..." % current_port)
+		else:
+			print("[PlaycademySDK.gd] Port %d returned HTTP %d, trying next port..." % [current_port, response_code])
+		_try_next_port()
+
+func _try_next_port():
+	_port_scan_index += 1
+	_discover_sandbox_port()
+
+var _found_sandbox_port: int = 0
+
+func _initialize_mock_client():
+	# Communicate with the local sandbox via HTTP using the discovered port
+	var sandbox_api_url = "http://localhost:%d/api" % _found_sandbox_port
+
+	is_sdk_initialized = true
+
+	# Instantiate local HTTP-based wrappers
+	users = preload("res://addons/playcademy/sdk/local/local_users_api.gd").new(sandbox_api_url)
+	runtime = preload("res://addons/playcademy/sdk/local/local_runtime_api.gd").new(sandbox_api_url)
+	inventory = preload("res://addons/playcademy/sdk/local/local_inventory_api.gd").new(sandbox_api_url)
+
+	add_child(users)
+	add_child(runtime)
+	add_child(inventory)
+
+	emit_signal("sdk_ready")
+
+
+func _handle_sandbox_connection_failed(error_message: String):
+	print("[PlaycademySDK.gd] Local development mode unavailable: ", error_message)
+	print("[PlaycademySDK.gd] SDK will initialize in offline mode")
+	emit_signal("sdk_initialization_failed", "LOCAL_DEVELOPMENT_UNAVAILABLE")
 
 # Example callback function if needed later
 # func _on_js_event(args_array):

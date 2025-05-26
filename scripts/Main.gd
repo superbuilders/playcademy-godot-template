@@ -63,12 +63,8 @@ func _ready():
 		printerr("[Playcademy Godot Template] CRITICAL: Not all UI elements, including feature tier labels, could be found after setup. Check UISetup.gd and Main.gd scripts.")
 		return 
 
-	# NOTE: If not running in a web environment, the Playcademy SDK will not initialize.
-	if not OS.has_feature("web"):
-		_update_sdk_status_display()
-		_disable_buttons() 
-		printerr("[Playcademy Godot Template] Not a web build. SDK functionality will be unavailable.")
-		return
+	# NOTE: The Playcademy SDK works in both web and local development environments
+	# In local development, it connects to the sandbox server automatically
 
 	inventory_label.text = "Currency: ---"
 	spend_item_button.disabled = true 
@@ -76,23 +72,16 @@ func _ready():
 	_update_feature_tier_display() # Initial update for feature tier statuses.
 
 	_update_sdk_status_display() # Reflect current SDK status (e.g., "Initializing...").
+	
+	# Show helpful info for local development
+	if not OS.has_feature("web"):
+		api_result_label.text = "API Result: Local development mode - ensure sandbox is running!"
 
 	# Connect to global Playcademy SDK signals.
 	# PlaycademySdk is an Autoload script that manages JavaScript SDK communication.
 	if PlaycademySdk:
 		PlaycademySdk.sdk_ready.connect(_on_sdk_ready)
 		PlaycademySdk.sdk_initialization_failed.connect(_on_sdk_init_failed)
-
-		PlaycademySdk.inventory.get_all_succeeded.connect(_on_get_inventory_succeeded)
-		PlaycademySdk.inventory.get_all_failed.connect(_on_get_inventory_failed)
-		PlaycademySdk.inventory.add_succeeded.connect(_on_add_item_succeeded)
-		PlaycademySdk.inventory.add_failed.connect(_on_add_item_failed)
-		PlaycademySdk.inventory.spend_succeeded.connect(_on_spend_item_succeeded)
-		PlaycademySdk.inventory.spend_failed.connect(_on_spend_item_failed)
-		PlaycademySdk.inventory.changed.connect(_on_inventory_changed_event)
-		
-		PlaycademySdk.users.profile_received.connect(_on_get_me_succeeded)
-		PlaycademySdk.users.profile_fetch_failed.connect(_on_get_me_failed)
 	else:
 		sdk_status_label.text = "SDK Status: PlaycademySdk Autoload NOT FOUND!"
 		_disable_buttons() # SDK is unavailable, so disable interactive elements.
@@ -124,21 +113,14 @@ func _set_status_indicator_color(color: Color):
 
 # Updates the UI elements that display the SDK's current initialization status.
 func _update_sdk_status_display():
-	# Handle non-web environment first
-	if not OS.has_feature("web"):
-		sdk_status_label.text = "SDK Status: Requires Web Environment"
-		_disable_buttons()
-		_set_status_indicator_color(Color("#F44336")) # Red, indicating non-functional
-		# Ensure API result label also reflects this state clearly
-		api_result_label.text = "API Result: SDK is non-functional outside of a web browser environment."
-		return
-
 	if PlaycademySdk and PlaycademySdk.is_ready():
-		sdk_status_label.text = "SDK Status: Initialized and Ready!"
+		var mode = "Web" if OS.has_feature("web") else "Local Development"
+		sdk_status_label.text = "SDK Status: Ready! (%s Mode)" % mode
 		_enable_buttons()
 		_set_status_indicator_color(Color("#4CAF50")) # Green
 	else:
-		sdk_status_label.text = "SDK Status: Not Ready / Initializing..."
+		var mode = "Web" if OS.has_feature("web") else "Local Development"
+		sdk_status_label.text = "SDK Status: Initializing... (%s Mode)" % mode
 		_disable_buttons()
 		_set_status_indicator_color(Color("#FFC107")) # Amber
 		
@@ -157,24 +139,44 @@ func _enable_buttons():
 
 # Called when the Playcademy SDK has successfully initialized.
 func _on_sdk_ready():
-	print("[Playcademy Godot Template] Playcademy SDK is Ready!")
+	var mode = "web" if OS.has_feature("web") else "local development"
+	print("[Playcademy Godot Template] Playcademy SDK is Ready in %s mode!" % mode)
+	
+	PlaycademySdk.inventory.get_all_succeeded.connect(_on_get_inventory_succeeded)
+	PlaycademySdk.inventory.get_all_failed.connect(_on_get_inventory_failed)
+	PlaycademySdk.inventory.add_succeeded.connect(_on_add_item_succeeded)
+	PlaycademySdk.inventory.add_failed.connect(_on_add_item_failed)
+	PlaycademySdk.inventory.spend_succeeded.connect(_on_spend_item_succeeded)
+	PlaycademySdk.inventory.spend_failed.connect(_on_spend_item_failed)
+	PlaycademySdk.inventory.changed.connect(_on_inventory_changed_event)
+	
+	PlaycademySdk.users.profile_received.connect(_on_get_me_succeeded)
+	PlaycademySdk.users.profile_fetch_failed.connect(_on_get_me_failed)
+	
 	_update_sdk_status_display()
-	api_result_label.text = "API Result: SDK Ready! Fetching initial inventory..."
+	api_result_label.text = "API Result: SDK Ready (%s mode)! Fetching initial inventory..." % mode
 	# Automatically fetch the player's inventory once the SDK is ready.
 	# This call is asynchronous. The actual inventory data will be delivered via the
-	# 'get_all_succeeded' signal (connected in _ready) to the '_on_get_inventory_succeeded' function.
+	# 'get_all_succeeded' signal (connected above) to the '_on_get_inventory_succeeded' function.
 	PlaycademySdk.inventory.get_all()
 
 # Called if the Playcademy SDK fails to initialize.
 func _on_sdk_init_failed(error_message: String):
 	printerr("[Playcademy Godot Template] Playcademy SDK Initialization Failed: ", error_message)
-	# _update_sdk_status_display will be called. If it's a NOT_WEB_BUILD error,
-	# it will correctly show "Requires Web Environment".
-	# Otherwise, it shows the specific initialization error.
-	_update_sdk_status_display()
-	if error_message != "NOT_WEB_BUILD": # Avoid overwriting the more specific message from _update_sdk_status_display
-		sdk_status_label.text = "SDK Status: FAILED - %s" % error_message
+	
+	var mode = "Web" if OS.has_feature("web") else "Local Development"
+	
+	# Handle specific error cases
+	if error_message == "NOT_WEB_BUILD":
+		sdk_status_label.text = "SDK Status: Local sandbox not available (%s Mode)" % mode
+		api_result_label.text = "API Result: Local sandbox not running. Check the Sandbox dock panel."
+		_set_status_indicator_color(Color("#FF9800")) # Orange - indicates fixable issue
+	else:
+		sdk_status_label.text = "SDK Status: FAILED - %s (%s Mode)" % [error_message, mode]
 		api_result_label.text = "API Result: SDK Init FAILED! Check console."
+		_set_status_indicator_color(Color("#F44336")) # Red - indicates error
+	
+	_disable_buttons()
 
 
 # --- Button Press Handlers ---
@@ -220,7 +222,7 @@ func _on_exit_button_pressed():
 # --- UserAPI Signal Handlers ---
 
 # Handles successful retrieval of user profile data.
-func _on_get_me_succeeded(user_data: JavaScriptObject):
+func _on_get_me_succeeded(user_data):
 	print("[Playcademy Godot Template] User profile received: ", user_data)
 	var user_display_representation := "N/A"
 	var user_id_str := "N/A"
@@ -230,15 +232,26 @@ func _on_get_me_succeeded(user_data: JavaScriptObject):
 		api_result_label.text = "API Result: User data null."
 		return
 
-	if user_data.id != null:
-		user_id_str = str(user_data.id)
+	if not user_data is Dictionary:
+		printerr("[Playcademy Godot Template] Unexpected user_data type: ", typeof(user_data))
+		user_info_label.text = "User Info: Unexpected data format."
+		api_result_label.text = "API Result: User data format error."
+		return
 	
-	if user_data.username != null and not str(user_data.username).is_empty():
-		user_display_representation = str(user_data.username)
-	elif user_data.name != null and not str(user_data.name).is_empty():
-		user_display_representation = str(user_data.name)
-	elif user_data.email != null and not str(user_data.email).is_empty():
-		user_display_representation = str(user_data.email)
+	var user_id = user_data.get("id")
+	var username = user_data.get("username")
+	var name = user_data.get("name")
+	var email = user_data.get("email")
+
+	if user_id != null:
+		user_id_str = str(user_id)
+	
+	if username != null and not str(username).is_empty():
+		user_display_representation = str(username)
+	elif name != null and not str(name).is_empty():
+		user_display_representation = str(name)
+	elif email != null and not str(email).is_empty():
+		user_display_representation = str(email)
 
 	# Fallback display if specific name fields are missing.
 	if user_display_representation == "N/A" and user_id_str != "N/A":
@@ -307,7 +320,7 @@ func _on_add_item_succeeded(response_data):
 	# The 'changed' signal from InventoryAPI should automatically trigger a re-fetch via _on_inventory_changed_event.
 
 func _on_add_item_failed(error_message: String):
-	printerr("[Playcademy Godot Template] Add Item Failed for '%s'. Error: " % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
+	printerr("[Playcademy Godot Template] Add Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
 	api_result_label.text = "API Result: Grant Item FAILED - %s" % error_message
 
 func _on_spend_item_succeeded(response_data):
@@ -316,7 +329,7 @@ func _on_spend_item_succeeded(response_data):
 	# The 'changed' signal from InventoryAPI should automatically trigger a re-fetch.
 
 func _on_spend_item_failed(error_message: String):
-	printerr("[Playcademy Godot Template] Spend Item Failed for '%s'. Error: " % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
+	printerr("[Playcademy Godot Template] Spend Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
 	api_result_label.text = "API Result: Spend Item FAILED - %s" % error_message
 
 # Handles the generic 'changed' signal from the InventoryAPI.
@@ -348,25 +361,33 @@ func _extract_detailed_item_info(item_data_dict: Dictionary) -> Dictionary:
 
 	extracted_info.quantity = int_quantity
 
-	var item_details_js: JavaScriptObject = item_data_dict.get("item")
+	var item_details = item_data_dict.get("item")
 
-	if item_details_js == null:
-		printerr("[Playcademy Godot Template] Item details (JavaScriptObject) are null for an inventory entry. Quantity: %d. Dict: %s" % [int_quantity, item_data_dict])
+	if item_details == null:
+		printerr("[Playcademy Godot Template] Item details are null for an inventory entry. Quantity: %d. Dict: %s" % [int_quantity, item_data_dict])
 		return extracted_info 
+	
+	if not item_details is Dictionary:
+		printerr("[Playcademy Godot Template] Unexpected item_details type: ", typeof(item_details))
+		return extracted_info
+	
+	var item_id = item_details.get("id")
+	var item_name = item_details.get("name")
+	var internal_name = item_details.get("internalName")
 		
-	if item_details_js.id != null:
-		extracted_info.id = str(item_details_js.id)
+	if item_id != null:
+		extracted_info.id = str(item_id)
 
 	var display_name = "Unknown Item (ID: %s)" % extracted_info.id
-	if item_details_js.name != null and not str(item_details_js.name).is_empty():
-		display_name = str(item_details_js.name)
-	elif item_details_js.internalName != null and not str(item_details_js.internalName).is_empty():
-		display_name = str(item_details_js.internalName) + " (Internal)"
+	if item_name != null and not str(item_name).is_empty():
+		display_name = str(item_name)
+	elif internal_name != null and not str(internal_name).is_empty():
+		display_name = str(internal_name) + " (Internal)"
 	
 	extracted_info.name = display_name
 
-	if item_details_js.internalName != null:
-		extracted_info.internal_name = str(item_details_js.internalName)
+	if internal_name != null:
+		extracted_info.internal_name = str(internal_name)
 	
 	return extracted_info
 

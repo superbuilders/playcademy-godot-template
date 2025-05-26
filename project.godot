@@ -11,14 +11,14 @@ config_version=5
 [application]
 
 config/name="Playcademy Template"
-config/version="0.3.0"
+config/version="0.4.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.4")
 config/icon="res://icon.svg"
 
 [autoload]
 
-PlaycademySdk="*res://addons/playcademy/sdk/PlaycademySdk.gd"
+PlaycademySdk="*res://addons/playcademy/sdk/playcademy_sdk.gd"
 
 [display]
 
@@ -29,7 +29,14 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/playcademy/manifest_exporter/plugin.cfg")
+enabled=PackedStringArray("res://addons/playcademy/manifest_exporter/plugin.cfg", "res://addons/playcademy/sandbox/plugin.cfg")
+
+[playcademy]
+
+sandbox/auto_start=false
+sandbox/port=4321
+sandbox/verbose=true
+sandbox/url="http://localhost:4321"
 
 [rendering]
 
