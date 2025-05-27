@@ -22,7 +22,7 @@ When enabled, this plugin:
 
 ### Prerequisites
 
-- **Node.js/npm** (recommended) or **Bun**:
+- **Node.js/npm** or **Bun**:
     - npm: Install Node.js from https://nodejs.org
     - bun: `curl -fsSL https://bun.sh/install | bash`
 - **Sandbox Package**: Install the sandbox globally:
@@ -43,7 +43,7 @@ When enabled, this plugin:
 
 ## Usage
 
-### Automatic Mode (Recommended)
+### Automatic Mode
 
 With `auto_start` enabled (default), the sandbox will automatically start when you:
 
