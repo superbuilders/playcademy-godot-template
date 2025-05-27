@@ -86,7 +86,19 @@ func _on_get_all_resolved(args: Array):
 			continue
 
 		var item_data_dict = {}
-		item_data_dict["item"] = item_entry_js.item 
+		
+		# Convert the JavaScript item object to a Dictionary
+		var item_js = item_entry_js.item
+		if item_js != null and item_js is JavaScriptObject:
+			var item_dict = {}
+			var item_properties = ["id", "internalName", "displayName", "description", "type", "imageUrl", "metadata"]
+			for prop in item_properties:
+				if item_js.hasOwnProperty(prop):
+					item_dict[prop] = item_js[prop]
+			item_data_dict["item"] = item_dict
+		else:
+			# Fallback for non-JS environments or if item is already a dict
+			item_data_dict["item"] = item_js
 
 		var raw_quantity = item_entry_js.quantity
 		var int_quantity = 0

@@ -15,8 +15,8 @@
             (typically an iframe hosting the game). This message, with `type: 'PLAYCADEMY_INIT'`, 
             carries initialization payload required by the Playcademy SDK.
         -   **SDK Initialization**: Upon receiving the `PLAYCADEMY_INIT` message, it calls 
-            `initFromWindow()` from the `@playcademy/sdk`. This function initializes the
-            Playcademy client.
+            `PlaycademyClient.init()` from the `@playcademy/sdk`. This function auto-detects
+            the context and initializes the Playcademy client.
         -   **Bridging to Godot (GDScript)**:
             -   The initialized `playcademyClient` object and a readiness flag 
                 (`isPlaycademyReady`) are attached to the global `window` object. This 
@@ -167,7 +167,7 @@
         </div>
 
         <script type="module">
-            import { initFromWindow } from '@playcademy/sdk'
+            import { PlaycademyClient } from '@playcademy/sdk'
 
             const logIfDebug = (...args) => {
                 if (window.PLAYCADEMY_DEBUG) {
@@ -177,7 +177,7 @@
 
             logIfDebug('[PlaycademyBridge] Initialized')
 
-            const handlePlaycademyInitMessage = event => {
+            const handlePlaycademyInitMessage = async event => {
                 if (event.data && event.data.type === 'PLAYCADEMY_INIT') {
                     logIfDebug(
                         '[PlaycademyBridge] Received PLAYCADEMY_INIT with payload:',
@@ -190,47 +190,44 @@
 
                     window.PLAYCADEMY = event.data.payload
 
-                    initFromWindow()
-                        .then(client => {
-                            logIfDebug(
-                                '[PlaycademyBridge] SDK Client initialized successfully:',
-                                client,
-                            )
-                            window.playcademyClient = client
-                            window.isPlaycademyReady = true
+                    try {
+                        const client = await PlaycademyClient.init()
+                        logIfDebug(
+                            '[PlaycademyBridge] SDK Client initialized successfully:',
+                            client,
+                        )
+                        window.playcademyClient = client
+                        window.isPlaycademyReady = true
 
-                            if (
-                                typeof window.godotPlaycademySDKInitializedCallback ===
-                                'function'
-                            ) {
-                                logIfDebug(
-                                    '[PlaycademyBridge] Calling pre-registered Godot callback with client...',
-                                )
-                                window.godotPlaycademySDKInitializedCallback(
-                                    client,
-                                )
-                            } else {
-                                logIfDebug(
-                                    '[PlaycademyBridge] Godot callback not yet registered. Godot will poll for readiness.',
-                                )
-                            }
-                        })
-                        .catch(err => {
+                        if (
+                            typeof window.godotPlaycademySDKInitializedCallback ===
+                            'function'
+                        ) {
                             logIfDebug(
-                                '[PlaycademyBridge] Error initializing Playcademy SDK Client:',
-                                err,
+                                '[PlaycademyBridge] Calling pre-registered Godot callback with client...',
                             )
-                            window.isPlaycademyReady = false
-                            if (
-                                typeof window.godotPlaycademySDKInitializationFailedCallback ===
-                                'function'
-                            ) {
-                                window.godotPlaycademySDKInitializationFailedCallback(
-                                    err.message ||
-                                        'SDK initFromWindow() failed',
-                                )
-                            }
-                        })
+                            window.godotPlaycademySDKInitializedCallback(client)
+                        } else {
+                            logIfDebug(
+                                '[PlaycademyBridge] Godot callback not yet registered. Godot will poll for readiness.',
+                            )
+                        }
+                    } catch (err) {
+                        logIfDebug(
+                            '[PlaycademyBridge] Error initializing Playcademy SDK Client:',
+                            err,
+                        )
+                        window.isPlaycademyReady = false
+                        if (
+                            typeof window.godotPlaycademySDKInitializationFailedCallback ===
+                            'function'
+                        ) {
+                            window.godotPlaycademySDKInitializationFailedCallback(
+                                err.message ||
+                                    'SDK PlaycademyClient.init() failed',
+                            )
+                        }
+                    }
                 }
             }
 
