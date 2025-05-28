@@ -8,9 +8,9 @@ signal get_all_failed(error_message)
 signal add_succeeded(response_data)
 signal add_failed(error_message)
 
-# Signals for spend operation
-signal spend_succeeded(response_data)
-signal spend_failed(error_message)
+# Signals for remove operation
+signal remove_succeeded(response_data)
+signal remove_failed(error_message)
 
 signal changed(change_data)
 
@@ -21,16 +21,19 @@ var _get_all_resolve_cb_js: JavaScriptObject = null
 var _get_all_reject_cb_js: JavaScriptObject = null
 var _add_resolve_cb_js: JavaScriptObject = null
 var _add_reject_cb_js: JavaScriptObject = null
-var _spend_resolve_cb_js: JavaScriptObject = null
-var _spend_reject_cb_js: JavaScriptObject = null
+var _remove_resolve_cb_js: JavaScriptObject = null
+var _remove_reject_cb_js: JavaScriptObject = null
 
 func _init(client_js_object: JavaScriptObject):
 	_main_client = client_js_object
 	print("[InventoryAPI] Initialized with client.")
 	
-	# TODO: Potentially subscribe to the JS SDK's event bus for 'inventoryChange' 
-	# and emit the Godot 'changed' signal when that JS event fires.
-	# This would require an additional JavaScriptBridge.create_callback for the event listener.
+	# TODO: Subscribe to the JS SDK's event bus for 'inventoryChange' events
+	# and emit the Godot 'changed' signal when those JS events fire.
+	# This would require additional JavaScriptBridge.create_callback calls for event listeners:
+	# - _main_client.on('inventoryChange', inventory_change_callback)
+	# Currently we manually emit 'changed' signals based on API response data as a workaround.
+	# This pattern should be implemented across all Godot SDK APIs for consistency.
 
 
 # Corresponds to client.users.inventory.get()
@@ -187,57 +190,57 @@ func _clear_add_callbacks():
 	_add_reject_cb_js = null
 
 
-# Corresponds to client.users.inventory.spend(itemId, qty)
-func spend(item_id: String, quantity: int = 1): # Changed amount to quantity, or use qty
+# Corresponds to client.users.inventory.remove(itemId, qty)
+func remove(item_id: String, quantity: int = 1):
 	if _main_client == null:
-		printerr("[InventoryAPI] Main client not set. Cannot call spend().")
-		emit_signal("spend_failed", "MAIN_CLIENT_NULL")
+		printerr("[InventoryAPI] Main client not set. Cannot call remove().")
+		emit_signal("remove_failed", "MAIN_CLIENT_NULL")
 		return
 
 	if not ('users' in _main_client and 
 			_main_client.users is JavaScriptObject and 
 			'inventory' in _main_client.users and 
 			_main_client.users.inventory is JavaScriptObject and 
-			'spend' in _main_client.users.inventory):
-		printerr("[InventoryAPI] client.users.inventory.spend() path not found.")
-		emit_signal("spend_failed", "METHOD_PATH_INVALID")
+			'remove' in _main_client.users.inventory):
+		printerr("[InventoryAPI] client.users.inventory.remove() path not found.")
+		emit_signal("remove_failed", "METHOD_PATH_INVALID")
 		return
 
-	print("[InventoryAPI] Calling _main_client.users.inventory.spend('%s', %d)..." % [item_id, quantity])
-	var promise = _main_client.users.inventory.spend(item_id, quantity)
+	print("[InventoryAPI] Calling _main_client.users.inventory.remove('%s', %d)..." % [item_id, quantity])
+	var promise = _main_client.users.inventory.remove(item_id, quantity)
 
 	if not promise is JavaScriptObject:
-		printerr("[InventoryAPI] spend() did not return a Promise.")
-		emit_signal("spend_failed", "NOT_A_PROMISE")
+		printerr("[InventoryAPI] remove() did not return a Promise.")
+		emit_signal("remove_failed", "NOT_A_PROMISE")
 		return
 
-	var on_resolve = Callable(self, "_on_spend_resolved").bind()
-	var on_reject = Callable(self, "_on_spend_rejected").bind()
+	var on_resolve = Callable(self, "_on_remove_resolved").bind()
+	var on_reject = Callable(self, "_on_remove_rejected").bind()
 
-	_spend_resolve_cb_js = JavaScriptBridge.create_callback(on_resolve)
-	_spend_reject_cb_js = JavaScriptBridge.create_callback(on_reject)
+	_remove_resolve_cb_js = JavaScriptBridge.create_callback(on_resolve)
+	_remove_reject_cb_js = JavaScriptBridge.create_callback(on_reject)
 
-	promise.then(_spend_resolve_cb_js, _spend_reject_cb_js)
-	print("[InventoryAPI] .then() called on inventory.spend() promise.")
+	promise.then(_remove_resolve_cb_js, _remove_reject_cb_js)
+	print("[InventoryAPI] .then() called on inventory.remove() promise.")
 
-func _on_spend_resolved(args: Array):
-	print("[InventoryAPI] Spend item promise resolved. Args: ", args)
+func _on_remove_resolved(args: Array):
+	print("[InventoryAPI] Remove item promise resolved. Args: ", args)
 	var response_data = null
 	if args.size() > 0: response_data = args[0]
-	emit_signal("spend_succeeded", response_data)
+	emit_signal("remove_succeeded", response_data)
 	emit_signal("changed", response_data)
-	_clear_spend_callbacks()
+	_clear_remove_callbacks()
 
-func _on_spend_rejected(args: Array):
-	print("[InventoryAPI] Spend item promise rejected. Args: ", args)
-	var error_msg = "SPEND_REJECTED_UNKNOWN"
+func _on_remove_rejected(args: Array):
+	print("[InventoryAPI] Remove item promise rejected. Args: ", args)
+	var error_msg = "REMOVE_REJECTED_UNKNOWN"
 	if args.size() > 0: error_msg = str(args[0])
-	emit_signal("spend_failed", error_msg)
-	_clear_spend_callbacks()
+	emit_signal("remove_failed", error_msg)
+	_clear_remove_callbacks()
 
-func _clear_spend_callbacks():
-	_spend_resolve_cb_js = null
-	_spend_reject_cb_js = null
+func _clear_remove_callbacks():
+	_remove_resolve_cb_js = null
+	_remove_reject_cb_js = null
 
 
 # TODO: Implement listening to JS event bus for 'inventoryChange'

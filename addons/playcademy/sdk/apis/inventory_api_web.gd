@@ -4,8 +4,8 @@ signal get_all_succeeded(inventory_data: Array)
 signal get_all_failed(error_message: String)
 signal add_succeeded(response_data: Dictionary)
 signal add_failed(error_message: String)
-signal spend_succeeded(response_data: Dictionary)
-signal spend_failed(error_message: String)
+signal remove_succeeded(response_data: Dictionary)
+signal remove_failed(error_message: String)
 signal changed(change_data)
 
 var _inventory_api
@@ -16,8 +16,8 @@ func _init(playcademy_client: JavaScriptObject):
 	_inventory_api.get_all_failed.connect(_on_original_get_all_failed)
 	_inventory_api.add_succeeded.connect(_on_original_add_succeeded)
 	_inventory_api.add_failed.connect(_on_original_add_failed)
-	_inventory_api.spend_succeeded.connect(_on_original_spend_succeeded)
-	_inventory_api.spend_failed.connect(_on_original_spend_failed)
+	_inventory_api.remove_succeeded.connect(_on_original_remove_succeeded)
+	_inventory_api.remove_failed.connect(_on_original_remove_failed)
 	_inventory_api.changed.connect(_on_original_changed)
 
 func get_all():
@@ -26,8 +26,8 @@ func get_all():
 func add(item_id: String, quantity: int):
 	_inventory_api.add(item_id, quantity)
 
-func spend(item_id: String, quantity: int):
-	_inventory_api.spend(item_id, quantity)
+func remove(item_id: String, quantity: int):
+	_inventory_api.remove(item_id, quantity)
 
 func _on_original_get_all_succeeded(inventory_data: Array):
 	# Convert array of JavaScriptObjects to array of Dictionaries
@@ -47,12 +47,12 @@ func _on_original_add_succeeded(response_data):
 func _on_original_add_failed(error_message: String):
 	emit_signal("add_failed", error_message)
 
-func _on_original_spend_succeeded(response_data):
+func _on_original_remove_succeeded(response_data):
 	var converted_response = _js_object_to_dict(response_data)
-	emit_signal("spend_succeeded", converted_response)
+	emit_signal("remove_succeeded", converted_response)
 
-func _on_original_spend_failed(error_message: String):
-	emit_signal("spend_failed", error_message)
+func _on_original_remove_failed(error_message: String):
+	emit_signal("remove_failed", error_message)
 
 func _on_original_changed(change_data):
 	var converted_change_data = _js_object_to_dict(change_data)

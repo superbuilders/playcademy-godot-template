@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Playcademy Template"
-config/version="0.6.0"
+config/version="0.7.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.4")
 config/icon="res://icon.svg"
@@ -23,7 +23,9 @@ PlaycademySdk="*res://addons/playcademy/sdk/playcademy_sdk.gd"
 [display]
 
 window/size/viewport_width=1280
-window/size/viewport_height=720
+window/size/viewport_height=900
+window/size/resizable=true
+window/size/borderless=false
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

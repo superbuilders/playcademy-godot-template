@@ -8,7 +8,9 @@ The Playcademy platform requires a `playcademy.manifest.json` file to correctly 
 
 ## Features
 
-- **Automatic Manifest Generation:** Creates the `playcademy.manifest.json` file in your web export directory.
+- **Automatic Manifest Generation:** Creates the `playcademy.manifest.json` file in your web export directory with essential game metadata.
+- **Auto-Zipping:** Automatically packages your entire export into a ZIP file ready for upload to the Playcademy platform.
+- **Smart Export Handling:** Intelligently detects export paths and skips auto-zipping for non-empty directories to prevent file conflicts.
 - **Playcademy Ready:** Simplifies the preparation of your Godot web games for the Playcademy platform.
 - **Seamless Integration:** Works automatically during the standard Godot HTML5 export process once the plugin is enabled.
 
@@ -34,7 +36,13 @@ The Playcademy platform requires a `playcademy.manifest.json` file to correctly 
 
 ## How to Use
 
-Once installed and enabled, the plugin works automatically. When you export your project for the "Web" (HTML5) platform, the `playcademy.manifest.json` file will be created in the root of your export directory alongside your game's `html`, `js`, and `pck` files.
+Once installed and enabled, the plugin works automatically. When you export your project for the "Web" (HTML5) platform:
+
+1. **Manifest Generation**: The `playcademy.manifest.json` file is created in your export directory with game metadata
+2. **Auto-Zipping**: A ZIP file is automatically created containing your entire export, ready for upload to the Playcademy platform
+3. **Clean Output**: The original export directory is preserved, and the ZIP file is placed in the parent directory
+
+The plugin intelligently handles export paths and will skip auto-zipping if it detects a non-empty export directory to prevent overwriting existing files.
 
 ## License
 

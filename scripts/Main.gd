@@ -5,12 +5,15 @@ extends Control
 var sdk_status_label: Label
 var user_info_label: Label
 var inventory_label: Label
+var level_info_label: Label
 var api_result_label: Label
 
 var get_user_button: Button
 var get_inventory_button: Button
+var get_level_button: Button
+var add_xp_button: Button
 var grant_item_button: Button
-var spend_item_button: Button
+var remove_item_button: Button
 var exit_button: Button
 var status_indicator_node: Panel
 
@@ -18,7 +21,8 @@ var status_indicator_node: Panel
 # Defines the internal name of the primary currency item used in this demo.
 const PRIMARY_CURRENCY_INTERNAL_NAME = "PLAYCADEMY_CREDITS"
 const CURRENCY_GRANT_AMOUNT = 50
-const CURRENCY_SPEND_AMOUNT = 50
+const CURRENCY_REMOVE_AMOUNT = 50
+const XP_GRANT_AMOUNT = 100
 
 # Defines feature tiers that can be "unlocked" by spending the primary currency.
 # 'label_node_name_in_setup' corresponds to the Node.name given to tier labels in UISetup.gd.
@@ -32,12 +36,16 @@ const FEATURE_TIERS = [
 var _primary_currency_uuid: String = ""   # UUID of the primary currency item, fetched from inventory.
 var _primary_currency_balance: int = 0  # Current balance of the primary currency.
 var _feature_tier_labels: Dictionary = {} # Stores references to the dynamically created tier labels for UI updates.
+var _current_level: int = 1
+var _current_xp: int = 0
+var _xp_to_next_level: int = 50
 
 func _ready():
 	# UISetup.gd is responsible for programmatically creating the UI elements for this scene.
 	var config_for_ui = {
 		"currency_grant_amount": CURRENCY_GRANT_AMOUNT,
-		"currency_spend_amount": CURRENCY_SPEND_AMOUNT,
+		"currency_remove_amount": CURRENCY_REMOVE_AMOUNT,
+		"xp_grant_amount": XP_GRANT_AMOUNT,
 		"feature_tiers": FEATURE_TIERS
 	}
 	var ui_elements = UISetup.setup_scene_ui(self, config_for_ui)
@@ -46,11 +54,14 @@ func _ready():
 	sdk_status_label = ui_elements.sdk_status_label
 	user_info_label = ui_elements.user_info_label
 	inventory_label = ui_elements.inventory_label
+	level_info_label = ui_elements.level_info_label
 	api_result_label = ui_elements.api_result_label
 	get_user_button = ui_elements.get_user_button
 	get_inventory_button = ui_elements.get_inventory_button
+	get_level_button = ui_elements.get_level_button
+	add_xp_button = ui_elements.add_xp_button
 	grant_item_button = ui_elements.grant_item_button
-	spend_item_button = ui_elements.spend_item_button
+	remove_item_button = ui_elements.remove_item_button
 	exit_button = ui_elements.exit_button
 	status_indicator_node = ui_elements.status_indicator
 	
@@ -58,8 +69,8 @@ func _ready():
 		_feature_tier_labels = ui_elements.feature_tier_labels
 
 	# Critical check: Ensure all necessary UI elements were successfully created and assigned.
-	if not (sdk_status_label and user_info_label and inventory_label and api_result_label and
-			get_user_button and get_inventory_button and grant_item_button and spend_item_button and exit_button and status_indicator_node and not _feature_tier_labels.is_empty()):
+	if not (sdk_status_label and user_info_label and inventory_label and level_info_label and api_result_label and
+			get_user_button and get_inventory_button and get_level_button and add_xp_button and grant_item_button and remove_item_button and exit_button and status_indicator_node and not _feature_tier_labels.is_empty()):
 		printerr("[Playcademy Godot Template] CRITICAL: Not all UI elements, including feature tier labels, could be found after setup. Check UISetup.gd and Main.gd scripts.")
 		return 
 
@@ -67,8 +78,11 @@ func _ready():
 	# In local development, it connects to the sandbox server automatically
 
 	inventory_label.text = "Currency: ---"
-	spend_item_button.disabled = true 
+	level_info_label.text = "Level: --- | XP: --- | To Next: ---"
+	remove_item_button.disabled = true 
 	grant_item_button.disabled = true 
+	get_level_button.disabled = true
+	add_xp_button.disabled = true
 	_update_feature_tier_display() # Initial update for feature tier statuses.
 
 	_update_sdk_status_display() # Reflect current SDK status (e.g., "Initializing...").
@@ -89,8 +103,10 @@ func _ready():
 	# Connect UI button press events to their respective handler functions.
 	get_user_button.pressed.connect(_on_get_user_button_pressed)
 	get_inventory_button.pressed.connect(_on_get_inventory_button_pressed)
+	get_level_button.pressed.connect(_on_get_level_button_pressed)
+	add_xp_button.pressed.connect(_on_add_xp_button_pressed)
 	grant_item_button.pressed.connect(_on_grant_item_button_pressed)
-	spend_item_button.pressed.connect(_on_spend_item_button_pressed)
+	remove_item_button.pressed.connect(_on_remove_item_button_pressed)
 	exit_button.pressed.connect(_on_exit_button_pressed)
 
 	# Edge case: If the Playcademy SDK was already initialized *before* this scene's _ready()
@@ -127,12 +143,18 @@ func _update_sdk_status_display():
 func _disable_buttons():
 	get_user_button.disabled = true
 	get_inventory_button.disabled = true
+	get_level_button.disabled = true
+	add_xp_button.disabled = true
 	grant_item_button.disabled = true
-	spend_item_button.disabled = true
+	remove_item_button.disabled = true
+	exit_button.disabled = true
 
 func _enable_buttons():
 	get_user_button.disabled = false
 	get_inventory_button.disabled = false
+	get_level_button.disabled = false
+	add_xp_button.disabled = false
+	grant_item_button.disabled = false
 	exit_button.disabled = false
 
 # --- SDK Initialization Signal Handlers ---
@@ -142,23 +164,44 @@ func _on_sdk_ready():
 	var mode = "web" if OS.has_feature("web") else "local development"
 	print("[Playcademy Godot Template] Playcademy SDK is Ready in %s mode!" % mode)
 	
+	# Connect inventory signals
 	PlaycademySdk.inventory.get_all_succeeded.connect(_on_get_inventory_succeeded)
 	PlaycademySdk.inventory.get_all_failed.connect(_on_get_inventory_failed)
 	PlaycademySdk.inventory.add_succeeded.connect(_on_add_item_succeeded)
 	PlaycademySdk.inventory.add_failed.connect(_on_add_item_failed)
-	PlaycademySdk.inventory.spend_succeeded.connect(_on_spend_item_succeeded)
-	PlaycademySdk.inventory.spend_failed.connect(_on_spend_item_failed)
+	PlaycademySdk.inventory.remove_succeeded.connect(_on_remove_item_succeeded)
+	PlaycademySdk.inventory.remove_failed.connect(_on_remove_item_failed)
 	PlaycademySdk.inventory.changed.connect(_on_inventory_changed_event)
 	
+	# Connect credits signals
+	PlaycademySdk.credits.balance_succeeded.connect(_on_credits_balance_succeeded)
+	PlaycademySdk.credits.balance_failed.connect(_on_credits_balance_failed)
+	PlaycademySdk.credits.add_succeeded.connect(_on_credits_add_succeeded)
+	PlaycademySdk.credits.add_failed.connect(_on_credits_add_failed)
+	PlaycademySdk.credits.spend_succeeded.connect(_on_credits_spend_succeeded)
+	PlaycademySdk.credits.spend_failed.connect(_on_credits_spend_failed)
+	
+	# Connect user signals
 	PlaycademySdk.users.profile_received.connect(_on_get_me_succeeded)
 	PlaycademySdk.users.profile_fetch_failed.connect(_on_get_me_failed)
 	
+	# Connect level signals
+	PlaycademySdk.levels.get_succeeded.connect(_on_get_level_succeeded)
+	PlaycademySdk.levels.get_failed.connect(_on_get_level_failed)
+	PlaycademySdk.levels.progress_succeeded.connect(_on_get_level_progress_succeeded)
+	PlaycademySdk.levels.progress_failed.connect(_on_get_level_progress_failed)
+	PlaycademySdk.levels.add_xp_succeeded.connect(_on_add_xp_succeeded)
+	PlaycademySdk.levels.add_xp_failed.connect(_on_add_xp_failed)
+	
+	# Connect level system events
+	PlaycademySdk.levels.level_up.connect(_on_level_up_event)
+	PlaycademySdk.levels.xp_gained.connect(_on_xp_gained_event)
+	
 	_update_sdk_status_display()
-	api_result_label.text = "API Result: SDK Ready (%s mode)! Fetching initial inventory..." % mode
-	# Automatically fetch the player's inventory once the SDK is ready.
-	# This call is asynchronous. The actual inventory data will be delivered via the
-	# 'get_all_succeeded' signal (connected above) to the '_on_get_inventory_succeeded' function.
+	api_result_label.text = "API Result: SDK Ready (%s mode)! Fetching initial data..." % mode
+	# Automatically fetch the player's inventory and level once the SDK is ready.
 	PlaycademySdk.inventory.get_all()
+	PlaycademySdk.levels.progress()
 
 # Called if the Playcademy SDK fails to initialize.
 func _on_sdk_init_failed(error_message: String):
@@ -194,25 +237,25 @@ func _on_get_inventory_button_pressed():
 	# 'get_all_succeeded' signal (connected in _ready) to the '_on_get_inventory_succeeded' function.
 	PlaycademySdk.inventory.get_all()
 
+func _on_get_level_button_pressed():
+	api_result_label.text = "API Result: Fetching level progress..."
+	PlaycademySdk.levels.progress()
+
+func _on_add_xp_button_pressed():
+	api_result_label.text = "API Result: Adding %d XP..." % XP_GRANT_AMOUNT
+	PlaycademySdk.levels.add_xp(XP_GRANT_AMOUNT)
+
 func _on_grant_item_button_pressed():
-	if _primary_currency_uuid.is_empty():
-		api_result_label.text = "API Result: Primary currency UUID not known. Fetch inventory first."
-		return
-	
 	api_result_label.text = "API Result: Granting %s credits..." % CURRENCY_GRANT_AMOUNT
-	PlaycademySdk.inventory.add(_primary_currency_uuid, CURRENCY_GRANT_AMOUNT)
+	PlaycademySdk.credits.add(CURRENCY_GRANT_AMOUNT)
 
-func _on_spend_item_button_pressed():
-	if _primary_currency_uuid.is_empty():
-		api_result_label.text = "API Result: Primary currency UUID not known. Fetch inventory first."
-		return
-
-	if _primary_currency_balance < CURRENCY_SPEND_AMOUNT:
-		api_result_label.text = "API Result: Not enough credits to spend."
+func _on_remove_item_button_pressed():
+	if _primary_currency_balance < CURRENCY_REMOVE_AMOUNT:
+		api_result_label.text = "API Result: Not enough credits to remove."
 		return
 	
-	api_result_label.text = "API Result: Spending %s credits..." % CURRENCY_SPEND_AMOUNT
-	PlaycademySdk.inventory.spend(_primary_currency_uuid, CURRENCY_SPEND_AMOUNT)
+	api_result_label.text = "API Result: Removing %s credits..." % CURRENCY_REMOVE_AMOUNT
+	PlaycademySdk.credits.spend(CURRENCY_REMOVE_AMOUNT)
 
 func _on_exit_button_pressed():
 	api_result_label.text = "API Result: Attempting to exit game..."
@@ -270,6 +313,79 @@ func _on_get_me_failed(error_message: String):
 	api_result_label.text = "API Result: Get User FAILED."
 
 
+# --- LevelsAPI Signal Handlers ---
+
+func _on_get_level_succeeded(level_data):
+	print("[Playcademy Godot Template] Level data received: ", level_data)
+	if level_data != null and level_data is Dictionary:
+		_current_level = level_data.get("currentLevel", 1)
+		_current_xp = level_data.get("currentXp", 0)
+		_update_level_display()
+		api_result_label.text = "API Result: Level data fetched successfully."
+	else:
+		level_info_label.text = "Level: Error - Invalid data"
+		api_result_label.text = "API Result: Level data invalid."
+
+func _on_get_level_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Get Level Failed: ", error_message)
+	level_info_label.text = "Level fetch failed: %s" % error_message
+	api_result_label.text = "API Result: Get Level FAILED."
+
+func _on_get_level_progress_succeeded(progress_data):
+	print("[Playcademy Godot Template] Level progress received: ", progress_data)
+	if progress_data != null and progress_data is Dictionary:
+		_current_level = progress_data.get("level", 1)
+		_current_xp = progress_data.get("currentXp", 0)
+		_xp_to_next_level = progress_data.get("xpToNextLevel", 50)
+		_update_level_display()
+		api_result_label.text = "API Result: Level progress fetched successfully."
+	else:
+		level_info_label.text = "Level: Error - Invalid progress data"
+		api_result_label.text = "API Result: Level progress data invalid."
+
+func _on_get_level_progress_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Get Level Progress Failed: ", error_message)
+	level_info_label.text = "Level progress fetch failed: %s" % error_message
+	api_result_label.text = "API Result: Get Level Progress FAILED."
+
+func _on_add_xp_succeeded(result_data):
+	print("[Playcademy Godot Template] Add XP succeeded: ", result_data)
+	if result_data != null and result_data is Dictionary:
+		var leveled_up = result_data.get("leveledUp", false)
+		var new_level = result_data.get("newLevel", _current_level)
+		var credits_awarded = result_data.get("creditsAwarded", 0)
+		
+		if leveled_up:
+			api_result_label.text = "API Result: 🎉 LEVEL UP! Level %d → %d (+%d credits)" % [_current_level, new_level, credits_awarded]
+		else:
+			api_result_label.text = "API Result: XP added successfully!"
+		
+		# Refresh level progress to get updated values
+		PlaycademySdk.levels.progress()
+		
+		# If credits were awarded, refresh inventory too
+		if credits_awarded > 0:
+			PlaycademySdk.inventory.get_all()
+	else:
+		api_result_label.text = "API Result: XP added but invalid response data."
+
+func _on_add_xp_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Add XP Failed: ", error_message)
+	api_result_label.text = "API Result: Add XP FAILED - %s" % error_message
+
+# Level system event handlers
+func _on_level_up_event(old_level: int, new_level: int, credits_awarded: int):
+	print("[Playcademy Godot Template] 🎉 LEVEL UP EVENT! %d → %d (Earned %d credits)" % [old_level, new_level, credits_awarded])
+	# This could trigger special effects, sounds, animations, etc.
+
+func _on_xp_gained_event(amount: int, total_xp: int, leveled_up: bool):
+	print("[Playcademy Godot Template] XP Gained Event: +%d XP (Total: %d, Leveled Up: %s)" % [amount, total_xp, leveled_up])
+	# This could trigger XP bar animations, floating text, etc.
+
+func _update_level_display():
+	level_info_label.text = "Level: %d | XP: %d | To Next: %d" % [_current_level, _current_xp, _xp_to_next_level]
+
+
 # --- InventoryAPI Signal Handlers ---
 
 # Handles successful retrieval of the player's inventory.
@@ -283,7 +399,7 @@ func _on_get_inventory_succeeded(inventory_data: Array):
 		inventory_label.text = "Currency: 0 (No items)"
 		api_result_label.text = "API Result: Inventory is empty."
 		grant_item_button.disabled = _primary_currency_uuid.is_empty()
-		spend_item_button.disabled = true
+		remove_item_button.disabled = true
 		_update_feature_tier_display()
 		return
 
@@ -299,12 +415,12 @@ func _on_get_inventory_succeeded(inventory_data: Array):
 	if _primary_currency_uuid.is_empty():
 		inventory_label.text = "Currency: 0 (Demo currency item not found)"
 		printerr("[Playcademy Godot Template] Primary currency '%s' not found in inventory." % PRIMARY_CURRENCY_INTERNAL_NAME)
-		grant_item_button.disabled = true
 	else:
 		inventory_label.text = "Currency: %d" % _primary_currency_balance
-		grant_item_button.disabled = false
 
-	spend_item_button.disabled = (_primary_currency_balance < CURRENCY_SPEND_AMOUNT or _primary_currency_uuid.is_empty())
+	# Credits API handles finding the item, so we can always enable grant
+	grant_item_button.disabled = false
+	remove_item_button.disabled = (_primary_currency_balance < CURRENCY_REMOVE_AMOUNT)
 	
 	api_result_label.text = "API Result: Inventory fetched successfully. %d item(s)." % processed_count
 	_update_feature_tier_display()
@@ -323,14 +439,14 @@ func _on_add_item_failed(error_message: String):
 	printerr("[Playcademy Godot Template] Add Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
 	api_result_label.text = "API Result: Grant Item FAILED - %s" % error_message
 
-func _on_spend_item_succeeded(response_data):
-	print("[Playcademy Godot Template] Spend Item Succeeded. Response: ", response_data)
-	api_result_label.text = "API Result: Item '%s' spent!" % PRIMARY_CURRENCY_INTERNAL_NAME
+func _on_remove_item_succeeded(response_data):
+	print("[Playcademy Godot Template] Remove Item Succeeded. Response: ", response_data)
+	api_result_label.text = "API Result: Item '%s' removed!" % PRIMARY_CURRENCY_INTERNAL_NAME
 	# The 'changed' signal from InventoryAPI should automatically trigger a re-fetch.
 
-func _on_spend_item_failed(error_message: String):
-	printerr("[Playcademy Godot Template] Spend Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
-	api_result_label.text = "API Result: Spend Item FAILED - %s" % error_message
+func _on_remove_item_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Remove Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
+	api_result_label.text = "API Result: Remove Item FAILED - %s" % error_message
 
 # Handles the generic 'changed' signal from the InventoryAPI.
 # This signal indicates that the inventory has been modified (e.g., by adding or spending items).
@@ -338,7 +454,43 @@ func _on_inventory_changed_event(change_data):
 	print("[Playcademy Godot Template] Inventory 'changed' signal received. Data: ", change_data)
 	api_result_label.text = "API Result: Inventory changed. Re-fetching..."
 	# Best practice: re-fetch the full inventory to ensure UI consistency.
-	PlaycademySdk.inventory.get_all() 
+	PlaycademySdk.inventory.get_all()
+
+
+func _on_credits_balance_succeeded(balance: int):
+	print("[Playcademy Godot Template] Credits balance: ", balance)
+	_primary_currency_balance = balance
+	inventory_label.text = "Currency: %d" % balance
+	_update_feature_tier_display()
+	api_result_label.text = "API Result: Credits balance fetched successfully."
+
+func _on_credits_balance_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Credits balance failed: ", error_message)
+	api_result_label.text = "API Result: Credits balance FAILED - %s" % error_message
+
+func _on_credits_add_succeeded(new_balance: int):
+	print("[Playcademy Godot Template] Credits added successfully. New balance: ", new_balance)
+	_primary_currency_balance = new_balance
+	inventory_label.text = "Currency: %d" % new_balance
+	_update_feature_tier_display()
+	remove_item_button.disabled = (_primary_currency_balance < CURRENCY_REMOVE_AMOUNT)
+	api_result_label.text = "API Result: %d credits granted! New balance: %d" % [CURRENCY_GRANT_AMOUNT, new_balance]
+
+func _on_credits_add_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Credits add failed: ", error_message)
+	api_result_label.text = "API Result: Grant credits FAILED - %s" % error_message
+
+func _on_credits_spend_succeeded(new_balance: int):
+	print("[Playcademy Godot Template] Credits spent successfully. New balance: ", new_balance)
+	_primary_currency_balance = new_balance
+	inventory_label.text = "Currency: %d" % new_balance
+	_update_feature_tier_display()
+	remove_item_button.disabled = (_primary_currency_balance < CURRENCY_REMOVE_AMOUNT)
+	api_result_label.text = "API Result: %d credits removed! New balance: %d" % [CURRENCY_REMOVE_AMOUNT, new_balance]
+
+func _on_credits_spend_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Credits spend failed: ", error_message)
+	api_result_label.text = "API Result: Remove credits FAILED - %s" % error_message 
 
 # This function processes a single inventory item entry
 func _extract_detailed_item_info(item_data_dict: Dictionary) -> Dictionary:

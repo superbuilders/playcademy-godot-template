@@ -8,9 +8,11 @@ The asset bundle includes the following key components:
 
 This is a Godot editor plugin that helps you prepare your game for the Playcademy platform. Its primary functions include:
 
-- **Game Metadata Definition**: Allows you to define and export essential metadata about your game, such as its name, version, entry scene, and other platform-specific configurations.
-- **Asset Packaging**: Assists in organizing and declaring the assets your game uses, ensuring they are correctly recognized and handled by the Playcademy system.
-- **Simplified Export**: Streamlines the process of exporting your game in a format compatible with Playcademy.
+- **Automatic Manifest Generation**: Creates the required `playcademy.manifest.json` file with game metadata (name, version, entry scene, platform info, etc.)
+- **Auto-Zipping**: Automatically packages your entire export into a ZIP file ready for upload to the Playcademy platform
+- **Smart Export Handling**: Intelligently detects export paths and skips auto-zipping for non-empty directories to prevent file conflicts
+- **Asset Packaging**: Assists in organizing and declaring the assets your game uses, ensuring they are correctly recognized and handled by the Playcademy system
+- **Simplified Export**: Streamlines the process of exporting your game in a format compatible with Playcademy
 
 To use the Manifest Exporter, simply enable it in your Godot project's `Project > Project Settings > Plugins` tab after downloading this asset via AssetLib (or else manually placing this directory into your project's `addons/` directory).
 
@@ -38,8 +40,29 @@ When deploying your game to the Playcademy web platform, the SDK relies critical
 
 **Using a custom HTML shell without incorporating the necessary Playcademy hooks may lead to SDK features not functioning as expected, or a complete failure of integration on the web platform.**
 
-## 3. Installation
+## 3. Development Sandbox Plugin (`sandbox/`)
+
+The Development Sandbox plugin provides a local development environment that enables full Playcademy SDK functionality during game development. Key features include:
+
+- **Local SDK Support**: Test user authentication, inventory management, and other platform features without deploying
+- **Automatic Server Management**: Starts and stops the sandbox server automatically when you open/close your project
+- **Editor Integration**: Provides a dock panel with sandbox status and controls
+- **Quick Iteration**: Run your game locally (Cmd+B/F5) with full platform functionality
+
+The sandbox requires Node.js/npm or Bun to be installed and the `@playcademy/sandbox` package installed globally.
+
+## 4. Installation
 
 1.  Download and copy (manually or via AssetLib) the entire `playcademy` directory into the `addons/` folder of your Godot project.
-2.  Enable the "Playcademy Manifest Exporter" plugin via `Project > Project Settings > Plugins` in the Godot editor.
-3.  The "Playcademy SDK" scripts within the `sdk/` folder will be directly accessible for you to use in your game scenes. Ensure your web export settings utilize the provided `shell.html` if deploying to the Playcademy platform.
+2.  Enable both plugins via `Project > Project Settings > Plugins` in the Godot editor:
+    - **"Playcademy Manifest Exporter"** plugin
+    - **"Playcademy Sandbox"** plugin (for local development)
+3.  Setup AutoLoad for SDK: Add `res://addons/playcademy/sdk/PlaycademySDK.gd` as an AutoLoad singleton:
+    - Go to `Project > Project Settings > AutoLoad`
+    - Click "Add" and select `res://addons/playcademy/sdk/PlaycademySDK.gd` for the "Path"
+    - Set "Name" to `PlaycademySdk`
+    - Ensure "Enable" is checked
+4.  Configure web export settings to utilize the provided `shell.html` if deploying to the Playcademy platform:
+    - Go to `Project > Export`
+    - Select the `Web (Runnable)` preset
+    - Under `Custom HTML Shell`, specify `res://addons/playcademy/shell.html`
