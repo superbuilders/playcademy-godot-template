@@ -94,7 +94,7 @@ func _on_get_all_resolved(args: Array):
 		var item_js = item_entry_js.item
 		if item_js != null and item_js is JavaScriptObject:
 			var item_dict = {}
-			var item_properties = ["id", "internalName", "displayName", "description", "type", "imageUrl", "metadata"]
+			var item_properties = ["id", "slug", "displayName", "description", "type", "imageUrl", "metadata"]
 			for prop in item_properties:
 				if item_js.hasOwnProperty(prop):
 					item_dict[prop] = item_js[prop]

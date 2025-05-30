@@ -13,7 +13,7 @@ var _inventory_api
 var _cached_credits_item_id: String = ""
 
 # Constants - should match @playcademy/data/constants
-const PLAYCADEMY_CREDITS_INTERNAL_NAME = "PLAYCADEMY_CREDITS"
+const PLAYCADEMY_CREDITS_SLUG = "PLAYCADEMY_CREDITS"
 
 func _init(inventory_api):
 	_inventory_api = inventory_api
@@ -88,8 +88,8 @@ func _on_inventory_get_all_succeeded(inventory_data: Array):
 	for item_entry in inventory_data:
 		if item_entry is Dictionary and item_entry.has("item"):
 			var item = item_entry.get("item")
-			if item is Dictionary and item.has("internalName"):
-				if item.get("internalName") == PLAYCADEMY_CREDITS_INTERNAL_NAME:
+			if item is Dictionary and item.has("slug"):
+				if item.get("slug") == PLAYCADEMY_CREDITS_SLUG:
 					found_credits_item = true
 					credits_balance = item_entry.get("quantity", 0)
 					

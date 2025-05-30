@@ -19,7 +19,7 @@ var status_indicator_node: Panel
 
 # --- Constants for this template ---
 # Defines the internal name of the primary currency item used in this demo.
-const PRIMARY_CURRENCY_INTERNAL_NAME = "PLAYCADEMY_CREDITS"
+const PRIMARY_CURRENCY_SLUG = "PLAYCADEMY_CREDITS"
 const CURRENCY_GRANT_AMOUNT = 50
 const CURRENCY_REMOVE_AMOUNT = 50
 const XP_GRANT_AMOUNT = 100
@@ -407,14 +407,14 @@ func _on_get_inventory_succeeded(inventory_data: Array):
 		var extracted_info = _extract_detailed_item_info(item_entry_dict)
 		if not extracted_info.is_empty():
 			processed_count += 1
-			if extracted_info.internal_name == PRIMARY_CURRENCY_INTERNAL_NAME:
+			if extracted_info.slug == PRIMARY_CURRENCY_SLUG:
 				_primary_currency_uuid = extracted_info.id
 				_primary_currency_balance = extracted_info.quantity
-				print("[Playcademy Godot Template] Found primary currency '%s': UUID=%s, Balance=%d" % [PRIMARY_CURRENCY_INTERNAL_NAME, _primary_currency_uuid, _primary_currency_balance])
+				print("[Playcademy Godot Template] Found primary currency '%s': UUID=%s, Balance=%d" % [PRIMARY_CURRENCY_SLUG, _primary_currency_uuid, _primary_currency_balance])
 
 	if _primary_currency_uuid.is_empty():
 		inventory_label.text = "Currency: 0 (Demo currency item not found)"
-		printerr("[Playcademy Godot Template] Primary currency '%s' not found in inventory." % PRIMARY_CURRENCY_INTERNAL_NAME)
+		printerr("[Playcademy Godot Template] Primary currency '%s' not found in inventory." % PRIMARY_CURRENCY_SLUG)
 	else:
 		inventory_label.text = "Currency: %d" % _primary_currency_balance
 
@@ -432,20 +432,20 @@ func _on_get_inventory_failed(error_message: String):
 
 func _on_add_item_succeeded(response_data):
 	print("[Playcademy Godot Template] Add Item Succeeded. Response: ", response_data)
-	api_result_label.text = "API Result: Item '%s' granted!" % PRIMARY_CURRENCY_INTERNAL_NAME
+	api_result_label.text = "API Result: Item '%s' granted!" % PRIMARY_CURRENCY_SLUG
 	# The 'changed' signal from InventoryAPI should automatically trigger a re-fetch via _on_inventory_changed_event.
 
 func _on_add_item_failed(error_message: String):
-	printerr("[Playcademy Godot Template] Add Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
+	printerr("[Playcademy Godot Template] Add Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_SLUG, error_message])
 	api_result_label.text = "API Result: Grant Item FAILED - %s" % error_message
 
 func _on_remove_item_succeeded(response_data):
 	print("[Playcademy Godot Template] Remove Item Succeeded. Response: ", response_data)
-	api_result_label.text = "API Result: Item '%s' removed!" % PRIMARY_CURRENCY_INTERNAL_NAME
+	api_result_label.text = "API Result: Item '%s' removed!" % PRIMARY_CURRENCY_SLUG
 	# The 'changed' signal from InventoryAPI should automatically trigger a re-fetch.
 
 func _on_remove_item_failed(error_message: String):
-	printerr("[Playcademy Godot Template] Remove Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_INTERNAL_NAME, error_message])
+	printerr("[Playcademy Godot Template] Remove Item Failed for '%s'. Error: %s" % [PRIMARY_CURRENCY_SLUG, error_message])
 	api_result_label.text = "API Result: Remove Item FAILED - %s" % error_message
 
 # Handles the generic 'changed' signal from the InventoryAPI.
@@ -498,7 +498,7 @@ func _extract_detailed_item_info(item_data_dict: Dictionary) -> Dictionary:
 	var extracted_info = {
 		"id": "N/A",
 		"name": "Unknown Item",
-		"internal_name": "N/A",
+		"slug": "N/A",
 		"quantity": 0
 	}
 
@@ -525,7 +525,7 @@ func _extract_detailed_item_info(item_data_dict: Dictionary) -> Dictionary:
 	
 	var item_id = item_details.get("id")
 	var item_name = item_details.get("name")
-	var internal_name = item_details.get("internalName")
+	var slug = item_details.get("slug")
 		
 	if item_id != null:
 		extracted_info.id = str(item_id)
@@ -533,13 +533,13 @@ func _extract_detailed_item_info(item_data_dict: Dictionary) -> Dictionary:
 	var display_name = "Unknown Item (ID: %s)" % extracted_info.id
 	if item_name != null and not str(item_name).is_empty():
 		display_name = str(item_name)
-	elif internal_name != null and not str(internal_name).is_empty():
-		display_name = str(internal_name) + " (Internal)"
+	elif slug != null and not str(slug).is_empty():
+		display_name = str(slug)
 	
 	extracted_info.name = display_name
 
-	if internal_name != null:
-		extracted_info.internal_name = str(internal_name)
+	if slug != null:
+		extracted_info.slug = str(slug)
 	
 	return extracted_info
 

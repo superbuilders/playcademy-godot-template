@@ -84,7 +84,7 @@ func _js_object_to_dict(js_obj) -> Dictionary:
 		var item_obj = js_obj.item
 		var item_dict = {}
 		
-		var item_properties = ["id", "internalName", "displayName", "description", "type", "imageUrl", "metadata"]
+		var item_properties = ["id", "slug", "displayName", "description", "type", "imageUrl", "metadata"]
 		for prop in item_properties:
 			if item_obj.hasOwnProperty(prop):
 				item_dict[prop] = item_obj[prop]
