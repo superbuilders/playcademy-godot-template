@@ -9,6 +9,8 @@ const RuntimeAPIWeb = preload("res://addons/playcademy/sdk/apis/runtime_api_web.
 const InventoryAPIWeb = preload("res://addons/playcademy/sdk/apis/inventory_api_web.gd")
 const LevelsAPIWeb = preload("res://addons/playcademy/sdk/apis/levels_api_web.gd")
 const CreditsAPIWeb = preload("res://addons/playcademy/sdk/apis/credits_api_web.gd")
+const LeaderboardAPIWeb = preload("res://addons/playcademy/sdk/apis/leaderboard_api_web.gd")
+const ScoresAPIWeb = preload("res://addons/playcademy/sdk/apis/scores_api_web.gd")
 
 var playcademy_client: JavaScriptObject = null
 var is_sdk_initialized := false
@@ -19,6 +21,8 @@ var runtime
 var inventory
 var levels
 var credits
+var leaderboard
+var scores
 
 # --- Main PlaycademySDK Methods ---
 func _ready():
@@ -92,7 +96,19 @@ func _on_sdk_initialized_from_js(args_array: Array):
 			_on_sdk_initialization_failed_from_js(["CreditsAPI_INSTANTIATION_FAILED"])
 			return
 
-		print("[PlaycademySDK.gd] Main Client assigned. Sub-APIs (Users, Runtime, Inventory, Levels, Credits) instantiated.")
+		leaderboard = LeaderboardAPIWeb.new(playcademy_client)
+		if leaderboard == null:
+			printerr("[PlaycademySDK.gd] CRITICAL: LeaderboardAPIWeb failed to instantiate!")
+			_on_sdk_initialization_failed_from_js(["LeaderboardAPI_INSTANTIATION_FAILED"])
+			return
+
+		scores = ScoresAPIWeb.new(playcademy_client)
+		if scores == null:
+			printerr("[PlaycademySDK.gd] CRITICAL: ScoresAPIWeb failed to instantiate!")
+			_on_sdk_initialization_failed_from_js(["ScoresAPI_INSTANTIATION_FAILED"])
+			return
+
+		print("[PlaycademySDK.gd] Main Client assigned. Sub-APIs (Users, Runtime, Inventory, Levels, Credits, Leaderboard, Scores) instantiated.")
 		emit_signal("sdk_ready")
 		test_sdk_ping()
 	else:
@@ -222,16 +238,21 @@ func _initialize_mock_client():
 	is_sdk_initialized = true
 
 	# Instantiate local HTTP-based wrappers
+	# For local development, let the sandbox handle game context server-side
 	users = preload("res://addons/playcademy/sdk/local/local_users_api.gd").new(sandbox_api_url)
 	runtime = preload("res://addons/playcademy/sdk/local/local_runtime_api.gd").new(sandbox_api_url)
 	inventory = preload("res://addons/playcademy/sdk/local/local_inventory_api.gd").new(sandbox_api_url)
 	levels = preload("res://addons/playcademy/sdk/local/local_levels_api.gd").new(sandbox_api_url)
 	credits = preload("res://addons/playcademy/sdk/local/local_credits_api.gd").new(inventory)
+	leaderboard = preload("res://addons/playcademy/sdk/local/local_leaderboard_api.gd").new(sandbox_api_url)
+	scores = preload("res://addons/playcademy/sdk/local/local_scores_api.gd").new(sandbox_api_url)
 
 	add_child(users)
 	add_child(runtime)
 	add_child(inventory)
 	add_child(levels)
+	add_child(leaderboard)
+	add_child(scores)
 
 	emit_signal("sdk_ready")
 

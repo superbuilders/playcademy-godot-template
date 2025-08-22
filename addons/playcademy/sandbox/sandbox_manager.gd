@@ -88,7 +88,7 @@ func start_sandbox():
 	else:  # bun
 		args = [
 			"x",  # bunx command to run packages
-			"@playcademy/sandbox",
+			"@playcademy/sandbox@0.1.0-beta.12",
 			"--port", str(port)
 		]
 	
