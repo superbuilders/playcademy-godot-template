@@ -15,6 +15,7 @@ var add_xp_button: Button
 var grant_item_button: Button
 var remove_item_button: Button
 var exit_button: Button
+var call_backend_button: Button
 var status_indicator_node: Panel
 
 # --- Constants for this template ---
@@ -63,6 +64,7 @@ func _ready():
 	grant_item_button = ui_elements.grant_item_button
 	remove_item_button = ui_elements.remove_item_button
 	exit_button = ui_elements.exit_button
+	call_backend_button = ui_elements.call_backend_button
 	status_indicator_node = ui_elements.status_indicator
 	
 	if ui_elements.has("feature_tier_labels"):
@@ -70,7 +72,7 @@ func _ready():
 
 	# Critical check: Ensure all necessary UI elements were successfully created and assigned.
 	if not (sdk_status_label and user_info_label and inventory_label and level_info_label and api_result_label and
-			get_user_button and get_inventory_button and get_level_button and add_xp_button and grant_item_button and remove_item_button and exit_button and status_indicator_node and not _feature_tier_labels.is_empty()):
+			get_user_button and get_inventory_button and get_level_button and add_xp_button and grant_item_button and remove_item_button and exit_button and call_backend_button and status_indicator_node and not _feature_tier_labels.is_empty()):
 		printerr("[Playcademy Godot Template] CRITICAL: Not all UI elements, including feature tier labels, could be found after setup. Check UISetup.gd and Main.gd scripts.")
 		return 
 
@@ -108,6 +110,7 @@ func _ready():
 	grant_item_button.pressed.connect(_on_grant_item_button_pressed)
 	remove_item_button.pressed.connect(_on_remove_item_button_pressed)
 	exit_button.pressed.connect(_on_exit_button_pressed)
+	call_backend_button.pressed.connect(_on_call_backend_button_pressed)
 
 	# Edge case: If the Playcademy SDK was already initialized *before* this scene's _ready()
 	# function executed, the `sdk_ready` signal might have been missed.
@@ -148,6 +151,7 @@ func _disable_buttons():
 	grant_item_button.disabled = true
 	remove_item_button.disabled = true
 	exit_button.disabled = true
+	call_backend_button.disabled = true
 
 func _enable_buttons():
 	get_user_button.disabled = false
@@ -156,6 +160,7 @@ func _enable_buttons():
 	add_xp_button.disabled = false
 	grant_item_button.disabled = false
 	exit_button.disabled = false
+	call_backend_button.disabled = false
 
 # --- SDK Initialization Signal Handlers ---
 
@@ -196,6 +201,10 @@ func _on_sdk_ready():
 	# Connect level system events
 	PlaycademySdk.levels.level_up.connect(_on_level_up_event)
 	PlaycademySdk.levels.xp_gained.connect(_on_xp_gained_event)
+	
+	# Connect backend signals
+	PlaycademySdk.backend.request_succeeded.connect(_on_backend_request_succeeded)
+	PlaycademySdk.backend.request_failed.connect(_on_backend_request_failed)
 	
 	_update_sdk_status_display()
 	api_result_label.text = "API Result: SDK Ready (%s mode)! Fetching initial data..." % mode
@@ -260,6 +269,26 @@ func _on_remove_item_button_pressed():
 func _on_exit_button_pressed():
 	api_result_label.text = "API Result: Attempting to exit game..."
 	PlaycademySdk.runtime.exit()
+
+func _on_call_backend_button_pressed():
+	api_result_label.text = "API Result: Calling custom backend route..."
+	# Example: Call a custom backend route
+	# This demonstrates calling /api/hello with POST method and some data
+	PlaycademySdk.backend.request("/hello", "POST", {
+		"exampleData": "Hello from Godot!",
+		"timestamp": Time.get_unix_time_from_system()
+	})
+
+
+# --- Backend API Signal Handlers ---
+
+func _on_backend_request_succeeded(response_data):
+	print("[Playcademy Godot Template] Backend request succeeded: ", response_data)
+	api_result_label.text = "API Result: Backend call succeeded! Response: %s" % JSON.stringify(response_data)
+
+func _on_backend_request_failed(error_message: String):
+	printerr("[Playcademy Godot Template] Backend request failed: ", error_message)
+	api_result_label.text = "API Result: Backend call FAILED - %s" % error_message
 
 
 # --- UserAPI Signal Handlers ---

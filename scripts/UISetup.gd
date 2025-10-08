@@ -78,8 +78,9 @@ static func setup_scene_ui(parent_control: Control, config_values: Dictionary) -
 	var grant_item_button = Button.new(); grant_item_button.name = "GrantItemButton"; grant_item_button.text = "Grant %s Credits" % config_values.get("currency_grant_amount", 10); _style_button(grant_item_button, Color("#FFC107")); hbox_buttons_2.add_child(grant_item_button)
 	var remove_item_button = Button.new(); remove_item_button.name = "RemoveItemButton"; remove_item_button.text = "Remove %s Credits" % config_values.get("currency_remove_amount", 10); _style_button(remove_item_button, Color("#FF5722")); hbox_buttons_2.add_child(remove_item_button)
 
-	# Third row (Exit)
+	# Third row (Backend & Exit)
 	var hbox_buttons_3 = HBoxContainer.new(); hbox_buttons_3.name = "ButtonHBox3"; hbox_buttons_3.alignment = BoxContainer.ALIGNMENT_CENTER; hbox_buttons_3.add_theme_constant_override("separation", 20); button_vbox.add_child(hbox_buttons_3)
+	var call_backend_button = Button.new(); call_backend_button.name = "CallBackendButton"; call_backend_button.text = "Call Backend"; _style_button(call_backend_button, Color("#00BCD4")); hbox_buttons_3.add_child(call_backend_button)
 	var exit_button = Button.new(); exit_button.name = "ExitButton"; exit_button.text = "Exit Game"; _style_button(exit_button, Color("#F44336")); hbox_buttons_3.add_child(exit_button)
 
 	return {
@@ -87,7 +88,7 @@ static func setup_scene_ui(parent_control: Control, config_values: Dictionary) -
 		"level_info_label": level_info_label, "api_result_label": api_result_label, "get_user_button": get_user_button, 
 		"get_inventory_button": get_inventory_button, "get_level_button": get_level_button, "add_xp_button": add_xp_button,
 		"grant_item_button": grant_item_button, "remove_item_button": remove_item_button, "status_indicator": status_indicator,
-		"exit_button": exit_button, "feature_tier_labels": feature_tier_labels_dict
+		"call_backend_button": call_backend_button, "exit_button": exit_button, "feature_tier_labels": feature_tier_labels_dict
 	}
 
 # Find existing UI elements when the UI has already been created
@@ -121,6 +122,7 @@ static func _find_existing_ui_elements(parent_control: Control) -> Dictionary:
 		"grant_item_button": button_hbox_2.get_node_or_null("GrantItemButton") if button_hbox_2 else null,
 		"remove_item_button": button_hbox_2.get_node_or_null("RemoveItemButton") if button_hbox_2 else null,
 		"status_indicator": sdk_user_vbox.get_node_or_null("StatusHBox/StatusIndicator") if sdk_user_vbox else null,
+		"call_backend_button": button_hbox_3.get_node_or_null("CallBackendButton") if button_hbox_3 else null,
 		"exit_button": button_hbox_3.get_node_or_null("ExitButton") if button_hbox_3 else null,
 		"feature_tier_labels": found_feature_labels
 	}

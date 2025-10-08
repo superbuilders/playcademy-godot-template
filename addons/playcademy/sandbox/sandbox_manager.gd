@@ -82,7 +82,7 @@ func start_sandbox():
 	if runtime_type == "npm":
 		args = [
 			"npx",  # npm package runner
-			"@playcademy/sandbox",
+			"@playcademy/sandbox@0.1.0-beta.12",
 			"--port", str(port)
 		]
 	else:  # bun
