@@ -1,7 +1,9 @@
 {
-    "name": "Astro Math",
-    "emoji": "🌌",
-    "backend": {
-        "directory": "api"
+    "name": "Godot Template",
+    "emoji": "🎮",
+    "integrations": {
+        "customRoutes": {
+            "directory": "server/api"
+        }
     }
 }

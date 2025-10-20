@@ -273,8 +273,8 @@ func _on_exit_button_pressed():
 func _on_call_backend_button_pressed():
 	api_result_label.text = "API Result: Calling custom backend route..."
 	# Example: Call a custom backend route
-	# This demonstrates calling /api/hello with POST method and some data
-	PlaycademySdk.backend.request("/hello", "POST", {
+	# This demonstrates calling /api/sample/custom with POST method and some data
+	PlaycademySdk.backend.request("/sample/custom", "POST", {
 		"exampleData": "Hello from Godot!",
 		"timestamp": Time.get_unix_time_from_system()
 	})
