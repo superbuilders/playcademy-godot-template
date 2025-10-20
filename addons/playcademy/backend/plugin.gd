@@ -20,10 +20,10 @@ func _enter_tree() -> void:
 	backend_manager = BackendManager.new()
 	add_child(backend_manager)
 	
-	# Create and add to inspector dock (right side panel with Inspector/Node/History tabs)
+	# Create and add to bottom panel (wide horizontal space for logs)
 	backend_panel = BackendPanel.new()
 	backend_panel.setup_with_manager(backend_manager)
-	add_control_to_dock(DOCK_SLOT_RIGHT_UL, backend_panel)
+	add_control_to_bottom_panel(backend_panel, "Playcademy")
 	
 	# Auto-start servers when plugin loads (project opened)
 	if EditorInterface.get_editor_main_screen():
@@ -32,7 +32,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	# Clean up panel
 	if backend_panel:
-		remove_control_from_docks(backend_panel)
+		remove_control_from_bottom_panel(backend_panel)
 		backend_panel.queue_free()
 		backend_panel = null
 	

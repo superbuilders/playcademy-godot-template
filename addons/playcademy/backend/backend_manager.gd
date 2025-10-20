@@ -24,6 +24,8 @@ var sandbox_port: int = 4321
 var backend_port: int = 8788
 var sandbox_process: int = -1
 var backend_process: int = -1
+var sandbox_log_path: String = ""
+var backend_log_path: String = ""
 
 # Project settings keys
 const SETTING_AUTO_START = "playcademy/backend/auto_start"
@@ -82,6 +84,17 @@ func _has_backend_config() -> bool:
 	var config_json = project_root + "/playcademy.config.json"
 	return FileAccess.file_exists(config_js) or FileAccess.file_exists(config_json)
 
+func get_log_path(server_type: String) -> String:
+	if server_type == "sandbox":
+		return sandbox_log_path
+	else:
+		return backend_log_path
+
+func _create_log_file_path(server_type: String) -> String:
+	var tmp_dir = OS.get_environment("TMPDIR") if OS.get_environment("TMPDIR") else "/tmp"
+	var pid = OS.get_process_id()
+	return tmp_dir.path_join("playcademy-%s-%d.log" % [server_type, pid])
+
 func start_sandbox(silent: bool = false):
 	if sandbox_status == ServerStatus.RUNNING or sandbox_status == ServerStatus.STARTING:
 		return
@@ -101,21 +114,33 @@ func start_sandbox(silent: bool = false):
 	sandbox_status = ServerStatus.STARTING
 	emit_signal("status_changed", get_status_string())
 	
-	var args = []
-	if runtime_type == "npm":
-		args = ["npx", "--yes", "@playcademy/sandbox", "--port", str(port)]
-	else:
-		args = ["x", "@playcademy/sandbox", "--port", str(port)]
+	# Create log file for output capture
+	sandbox_log_path = _create_log_file_path("sandbox")
 	
-	if verbose:
-		args.append("--verbose")
+	var args = []
+	var shell_cmd = ""
+	if runtime_type == "npm":
+		shell_cmd = "NO_COLOR=1 npx --yes @playcademy/sandbox --port %d" % port
+	else:
+		shell_cmd = "NO_COLOR=1 bun x --silent @playcademy/sandbox --port %d" % port
+	
+	# Always enable verbose logging for useful output in the dock
+	shell_cmd += " --verbose"
 	
 	var project_name = ProjectSettings.get_setting("application/config/name", "godot-game")
 	var project_slug = project_name.to_lower().replace(" ", "-")
-	args.append_array(["--project-name", project_name])
-	args.append_array(["--project-slug", project_slug])
+	shell_cmd += " --project-name \"%s\" --project-slug %s" % [project_name, project_slug]
 	
-	sandbox_process = OS.create_process(runtime_path, args)
+	# Redirect output to log file
+	shell_cmd += " > %s 2>&1" % sandbox_log_path
+	
+	# Use shell to handle redirection
+	if OS.get_name() == "Windows":
+		args = ["cmd", "/c", shell_cmd]
+		sandbox_process = OS.create_process("cmd", args.slice(1))
+	else:
+		args = ["sh", "-c", shell_cmd]
+		sandbox_process = OS.create_process("sh", args.slice(1))
 	
 	if sandbox_process == -1:
 		sandbox_status = ServerStatus.STOPPED
@@ -149,16 +174,26 @@ func start_backend(silent: bool = false):
 	backend_status = ServerStatus.STARTING
 	emit_signal("status_changed", get_status_string())
 	
-	var args = []
+	# Create log file for output capture
+	backend_log_path = _create_log_file_path("backend")
+	
+	var shell_cmd = ""
 	if runtime_type == "npm":
-		args = ["npx", "--yes", "playcademy", "dev", "--port", str(port)]
+		shell_cmd = "NO_COLOR=1 npx --yes playcademy dev --port %d" % port
 	else:
-		args = ["x", "playcademy", "dev", "--port", str(port)]
+		shell_cmd = "NO_COLOR=1 bun x playcademy dev --port %d" % port
 	
-	if verbose:
-		args.append("--verbose")
+	# Redirect output to log file
+	shell_cmd += " > %s 2>&1" % backend_log_path
 	
-	backend_process = OS.create_process(runtime_path, args)
+	# Use shell to handle redirection
+	var args = []
+	if OS.get_name() == "Windows":
+		args = ["cmd", "/c", shell_cmd]
+		backend_process = OS.create_process("cmd", args.slice(1))
+	else:
+		args = ["sh", "-c", shell_cmd]
+		backend_process = OS.create_process("sh", args.slice(1))
 	
 	if backend_process == -1:
 		backend_status = ServerStatus.STOPPED
@@ -183,23 +218,37 @@ func stop_sandbox():
 	sandbox_status = ServerStatus.STOPPING
 	emit_signal("status_changed", get_status_string())
 	
-	var pid_to_cleanup = sandbox_process
+	# Get the actual sandbox PID from the registry (not the shell wrapper)
+	var actual_pid = _get_server_pid_from_registry("sandbox")
+	var shell_pid = sandbox_process
 	
-	if sandbox_process != -1:
+	if actual_pid != -1:
 		# Try to send SIGINT for graceful shutdown (Unix only)
 		if OS.get_name() != "Windows":
 			var output = []
-			OS.execute("kill", ["-2", str(sandbox_process)], output)
+			OS.execute("kill", ["-2", str(actual_pid)], output)
 			# Wait briefly for cleanup handler to run
-			await get_tree().create_timer(0.2).timeout
+			await get_tree().create_timer(0.5).timeout
 		
 		# Kill process if still alive (or on Windows)
-		OS.kill(sandbox_process)
+		OS.kill(actual_pid)
+	
+	# Also kill the shell wrapper process
+	if shell_pid != -1:
+		OS.kill(shell_pid)
 		sandbox_process = -1
 	
 	# Manually clean up registry (in case cleanup handler didn't run)
-	if pid_to_cleanup != -1:
-		_cleanup_registry_entry_by_pid("sandbox", pid_to_cleanup)
+	if actual_pid != -1:
+		_cleanup_registry_entry_by_pid("sandbox", actual_pid)
+	
+	# Append shutdown message to log
+	if sandbox_log_path and FileAccess.file_exists(sandbox_log_path):
+		var log_file = FileAccess.open(sandbox_log_path, FileAccess.READ_WRITE)
+		if log_file:
+			log_file.seek_end()
+			log_file.store_string("\n\n[Server stopped by Godot plugin]\n")
+			log_file.close()
 	
 	sandbox_url = ""
 	sandbox_status = ServerStatus.STOPPED
@@ -212,23 +261,37 @@ func stop_backend():
 	backend_status = ServerStatus.STOPPING
 	emit_signal("status_changed", get_status_string())
 	
-	var pid_to_cleanup = backend_process
+	# Get the actual backend PID from the registry (not the shell wrapper)
+	var actual_pid = _get_server_pid_from_registry("backend")
+	var shell_pid = backend_process
 	
-	if backend_process != -1:
+	if actual_pid != -1:
 		# Try to send SIGINT for graceful shutdown (Unix only)
 		if OS.get_name() != "Windows":
 			var output = []
-			OS.execute("kill", ["-2", str(backend_process)], output)
+			OS.execute("kill", ["-2", str(actual_pid)], output)
 			# Wait briefly for cleanup handler to run
-			await get_tree().create_timer(0.2).timeout
+			await get_tree().create_timer(0.5).timeout
 		
 		# Kill process if still alive (or on Windows)
-		OS.kill(backend_process)
+		OS.kill(actual_pid)
+	
+	# Also kill the shell wrapper process
+	if shell_pid != -1:
+		OS.kill(shell_pid)
 		backend_process = -1
 	
 	# Manually clean up registry (in case cleanup handler didn't run)
-	if pid_to_cleanup != -1:
-		_cleanup_registry_entry_by_pid("backend", pid_to_cleanup)
+	if actual_pid != -1:
+		_cleanup_registry_entry_by_pid("backend", actual_pid)
+	
+	# Append shutdown message to log
+	if backend_log_path and FileAccess.file_exists(backend_log_path):
+		var log_file = FileAccess.open(backend_log_path, FileAccess.READ_WRITE)
+		if log_file:
+			log_file.seek_end()
+			log_file.store_string("\n\n[Server stopped by Godot plugin]\n")
+			log_file.close()
 	
 	backend_url = ""
 	backend_status = ServerStatus.STOPPED
@@ -288,6 +351,34 @@ func _handle_error(server_type: String, error_message: String):
 	
 	emit_signal("server_failed", server_type, error_message)
 	emit_signal("status_changed", get_status_string())
+
+# Get the actual server PID from the port registry
+func _get_server_pid_from_registry(server_type: String) -> int:
+	var home = OS.get_environment("HOME")
+	var registry_path = home + "/.playcademy/.proc"
+	var file = FileAccess.open(registry_path, FileAccess.READ)
+	
+	if not file:
+		return -1
+	
+	var registry_text = file.get_as_text()
+	file.close()
+	
+	var json_result = JSON.parse_string(registry_text)
+	if json_result == null:
+		return -1
+	
+	var registry = json_result
+	var my_project = ProjectSettings.globalize_path("res://").rstrip("/")
+	
+	# Find server for this project and return its PID
+	for key in registry:
+		if key.begins_with(server_type + "-"):
+			var server = registry[key]
+			if server.projectRoot == my_project:
+				return server.pid
+	
+	return -1
 
 # Check server registry with retry logic (retry every 500ms for 5 seconds = 10 attempts)
 var _retry_counts = {"sandbox": 0, "backend": 0}
@@ -447,5 +538,13 @@ func _cleanup_registry_entry_by_pid(server_type: String, pid: int):
 			write_file.close()
 			print("[PlaycademyBackend] Cleaned up %d %s entries from registry" % [keys_to_remove.size(), server_type])
 
+func _cleanup_log_files():
+	# Clean up log files
+	if sandbox_log_path and FileAccess.file_exists(sandbox_log_path):
+		DirAccess.remove_absolute(sandbox_log_path)
+	if backend_log_path and FileAccess.file_exists(backend_log_path):
+		DirAccess.remove_absolute(backend_log_path)
+
 func _exit_tree():
 	stop_servers()
+	_cleanup_log_files()
