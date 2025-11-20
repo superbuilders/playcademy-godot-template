@@ -32,17 +32,13 @@ static func setup_scene_ui(parent_control: Control, config_values: Dictionary) -
 	var sdk_status_label = Label.new(); sdk_status_label.name = "SDKStatusLabel"; sdk_status_label.text = "SDK Status: Initializing..."; sdk_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; sdk_status_label.add_theme_font_size_override("font_size", 24); status_hbox.add_child(sdk_status_label)
 	var user_info_label = Label.new(); user_info_label.name = "UserInfoLabel"; user_info_label.text = "No user data yet - click 'Get User' to fetch"; user_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; user_info_label.add_theme_font_size_override("font_size", 20); sdk_user_vbox.add_child(user_info_label)
 
-	# --- Level & Currency Panel ---
-	var level_currency_panel = PanelContainer.new(); var lc_style = StyleBoxFlat.new(); lc_style.bg_color = Color("#363636"); lc_style.set_corner_radius_all(12); lc_style.content_margin_top = 16; lc_style.content_margin_bottom = 16; lc_style.content_margin_left = 16; lc_style.content_margin_right = 16; level_currency_panel.add_theme_stylebox_override("panel", lc_style); level_currency_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; vbox_container.add_child(level_currency_panel)
-	var level_currency_vbox = VBoxContainer.new(); level_currency_vbox.name = "LevelCurrencyVBox"; level_currency_vbox.add_theme_constant_override("separation", 12); level_currency_panel.add_child(level_currency_vbox)
-
-	# --- Level section ---
-	var level_title_label = Label.new(); level_title_label.text = "Level Progress"; level_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; level_title_label.add_theme_font_size_override("font_size", 24); level_title_label.add_theme_color_override("font_color", Color("#e1bee7")); level_currency_vbox.add_child(level_title_label)
-	var level_info_label = Label.new(); level_info_label.name = "LevelInfoLabel"; level_info_label.text = "Level: --- | XP: --- | To Next: ---"; level_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; level_info_label.add_theme_font_size_override("font_size", 20); level_currency_vbox.add_child(level_info_label)
+	# --- Currency Panel ---
+	var currency_panel = PanelContainer.new(); var cp_style = StyleBoxFlat.new(); cp_style.bg_color = Color("#363636"); cp_style.set_corner_radius_all(12); cp_style.content_margin_top = 16; cp_style.content_margin_bottom = 16; cp_style.content_margin_left = 16; cp_style.content_margin_right = 16; currency_panel.add_theme_stylebox_override("panel", cp_style); currency_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; vbox_container.add_child(currency_panel)
+	var currency_vbox = VBoxContainer.new(); currency_vbox.name = "CurrencyVBox"; currency_vbox.add_theme_constant_override("separation", 12); currency_panel.add_child(currency_vbox)
 
 	# --- Currency section ---
-	var inventory_title_label = Label.new(); inventory_title_label.text = "Inventory"; inventory_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; inventory_title_label.add_theme_font_size_override("font_size", 24); inventory_title_label.add_theme_color_override("font_color", Color("#bbdefb")); level_currency_vbox.add_child(inventory_title_label)
-	var inventory_label = Label.new(); inventory_label.name = "InventoryLabel"; inventory_label.text = "Currency: ---"; inventory_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; inventory_label.add_theme_font_size_override("font_size", 20); level_currency_vbox.add_child(inventory_label)
+	var inventory_title_label = Label.new(); inventory_title_label.text = "Inventory"; inventory_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; inventory_title_label.add_theme_font_size_override("font_size", 24); inventory_title_label.add_theme_color_override("font_color", Color("#bbdefb")); currency_vbox.add_child(inventory_title_label)
+	var inventory_label = Label.new(); inventory_label.name = "InventoryLabel"; inventory_label.text = "Currency: ---"; inventory_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; inventory_label.add_theme_font_size_override("font_size", 20); currency_vbox.add_child(inventory_label)
 
 	# --- Feature Unlocks Panel ---
 	var unlocks_panel = PanelContainer.new(); var up_style = StyleBoxFlat.new(); up_style.bg_color = Color("#363636"); up_style.set_corner_radius_all(12); up_style.content_margin_top = 16; up_style.content_margin_bottom = 16; up_style.content_margin_left = 16; up_style.content_margin_right = 16; unlocks_panel.add_theme_stylebox_override("panel", up_style); unlocks_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; vbox_container.add_child(unlocks_panel)
@@ -70,11 +66,9 @@ static func setup_scene_ui(parent_control: Control, config_values: Dictionary) -
 	var hbox_buttons_1 = HBoxContainer.new(); hbox_buttons_1.name = "ButtonHBox1"; hbox_buttons_1.alignment = BoxContainer.ALIGNMENT_CENTER; hbox_buttons_1.add_theme_constant_override("separation", 20); button_vbox.add_child(hbox_buttons_1)
 	var get_user_button = Button.new(); get_user_button.name = "GetUserButton"; get_user_button.text = "Get User"; _style_button(get_user_button, Color("#4CAF50")); hbox_buttons_1.add_child(get_user_button)
 	var get_inventory_button = Button.new(); get_inventory_button.name = "GetInventoryButton"; get_inventory_button.text = "Get Inventory"; _style_button(get_inventory_button, Color("#2196F3")); hbox_buttons_1.add_child(get_inventory_button)
-	var get_level_button = Button.new(); get_level_button.name = "GetLevelButton"; get_level_button.text = "Get Level"; _style_button(get_level_button, Color("#9C27B0")); hbox_buttons_1.add_child(get_level_button)
 
-	# Second row of buttons (Actions)
+	# Second row of buttons (Credits)
 	var hbox_buttons_2 = HBoxContainer.new(); hbox_buttons_2.name = "ButtonHBox2"; hbox_buttons_2.alignment = BoxContainer.ALIGNMENT_CENTER; hbox_buttons_2.add_theme_constant_override("separation", 20); button_vbox.add_child(hbox_buttons_2)
-	var add_xp_button = Button.new(); add_xp_button.name = "AddXPButton"; add_xp_button.text = "Add %d XP" % config_values.get("xp_grant_amount", 100); _style_button(add_xp_button, Color("#E91E63")); hbox_buttons_2.add_child(add_xp_button)
 	var grant_item_button = Button.new(); grant_item_button.name = "GrantItemButton"; grant_item_button.text = "Grant %s Credits" % config_values.get("currency_grant_amount", 10); _style_button(grant_item_button, Color("#FFC107")); hbox_buttons_2.add_child(grant_item_button)
 	var remove_item_button = Button.new(); remove_item_button.name = "RemoveItemButton"; remove_item_button.text = "Remove %s Credits" % config_values.get("currency_remove_amount", 10); _style_button(remove_item_button, Color("#FF5722")); hbox_buttons_2.add_child(remove_item_button)
 
@@ -85,8 +79,8 @@ static func setup_scene_ui(parent_control: Control, config_values: Dictionary) -
 
 	return {
 		"sdk_status_label": sdk_status_label, "user_info_label": user_info_label, "inventory_label": inventory_label, 
-		"level_info_label": level_info_label, "api_result_label": api_result_label, "get_user_button": get_user_button, 
-		"get_inventory_button": get_inventory_button, "get_level_button": get_level_button, "add_xp_button": add_xp_button,
+		"api_result_label": api_result_label, "get_user_button": get_user_button, 
+		"get_inventory_button": get_inventory_button,
 		"grant_item_button": grant_item_button, "remove_item_button": remove_item_button, "status_indicator": status_indicator,
 		"call_backend_button": call_backend_button, "exit_button": exit_button, "feature_tier_labels": feature_tier_labels_dict
 	}
@@ -113,12 +107,9 @@ static func _find_existing_ui_elements(parent_control: Control) -> Dictionary:
 		"sdk_status_label": sdk_user_vbox.get_node_or_null("StatusHBox/SDKStatusLabel") if sdk_user_vbox else null,
 		"user_info_label": sdk_user_vbox.get_node_or_null("UserInfoLabel") if sdk_user_vbox else null,
 		"inventory_label": level_currency_vbox.get_node_or_null("InventoryLabel") if level_currency_vbox else null,
-		"level_info_label": level_currency_vbox.get_node_or_null("LevelInfoLabel") if level_currency_vbox else null,
 		"api_result_label": root.get_node_or_null("ResultPanel/APIResultLabel"),
 		"get_user_button": button_hbox_1.get_node_or_null("GetUserButton") if button_hbox_1 else null,
 		"get_inventory_button": button_hbox_1.get_node_or_null("GetInventoryButton") if button_hbox_1 else null,
-		"get_level_button": button_hbox_1.get_node_or_null("GetLevelButton") if button_hbox_1 else null,
-		"add_xp_button": button_hbox_2.get_node_or_null("AddXPButton") if button_hbox_2 else null,
 		"grant_item_button": button_hbox_2.get_node_or_null("GrantItemButton") if button_hbox_2 else null,
 		"remove_item_button": button_hbox_2.get_node_or_null("RemoveItemButton") if button_hbox_2 else null,
 		"status_indicator": sdk_user_vbox.get_node_or_null("StatusHBox/StatusIndicator") if sdk_user_vbox else null,

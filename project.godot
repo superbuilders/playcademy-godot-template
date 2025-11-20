@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Playcademy Template"
-config/version="0.12.0"
+config/version="0.13.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.5")
 config/icon="res://icon.svg"
@@ -41,6 +41,7 @@ backend/auto_start=false
 backend/sandbox_port=4321
 backend/backend_port=8788
 backend/verbose=false
+backend/project_path=""
 
 [rendering]
 
