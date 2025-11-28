@@ -200,7 +200,7 @@ func _initialize_mock_client():
 	runtime = preload("res://addons/playcademy/sdk/local/local_runtime_api.gd").new(sandbox_api_url)
 	credits = preload("res://addons/playcademy/sdk/local/local_credits_api.gd").new(users)
 	scores = preload("res://addons/playcademy/sdk/local/local_scores_api.gd").new(sandbox_api_url)
-	timeback = preload("res://addons/playcademy/sdk/local/local_timeback_api.gd").new(game_backend_url)
+	timeback = preload("res://addons/playcademy/sdk/local/local_timeback_api.gd").new(game_backend_url, sandbox_api_url)
 	backend = preload("res://addons/playcademy/sdk/local/local_backend_api.gd").new(game_backend_url)
 
 	add_child(users)
@@ -208,6 +208,9 @@ func _initialize_mock_client():
 	add_child(scores)
 	add_child(timeback)
 	add_child(backend)
+	
+	# Fetch TimeBack user context (role and enrollments)
+	timeback.fetch_user_context()
 
 	print("[PlaycademySDK.gd] Local development mode: Game SDK namespaces ready (users + inventory, runtime, credits, scores, timeback, backend)")
 	emit_signal("sdk_ready")

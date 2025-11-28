@@ -4,6 +4,28 @@
     "integrations": {
         "customRoutes": {
             "directory": "server/api"
+        },
+        "timeback": {
+            "courses": [
+                {
+                    "subject": "Math",
+                    "grade": 1,
+                    "totalXp": null,
+                    "masterableUnits": null
+                },
+                {
+                    "subject": "Math",
+                    "grade": 2,
+                    "totalXp": null,
+                    "masterableUnits": null
+                },
+                {
+                    "subject": "Math",
+                    "grade": 3,
+                    "totalXp": null,
+                    "masterableUnits": null
+                }
+            ]
         }
     }
 }

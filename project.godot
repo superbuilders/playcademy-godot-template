@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Playcademy Template"
-config/version="0.13.0"
+config/version="0.14.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.5")
 config/icon="res://icon.svg"
@@ -33,15 +33,8 @@ enabled=PackedStringArray("res://addons/playcademy/backend/plugin.cfg", "res://a
 
 [playcademy]
 
-sandbox/auto_start=false
-sandbox/port=4321
-sandbox/verbose=true
-sandbox/url="http://localhost:4321"
-backend/auto_start=false
-backend/sandbox_port=4321
-backend/backend_port=8788
-backend/verbose=false
-backend/project_path=""
+backend/project_path="/Users/hbauer/work/projects/playcademy/templates/godot-template"
+timeback/role="parent"
 
 [rendering]
 
